@@ -118,9 +118,9 @@ export async function GET(
     const communityUnlockAt = communityTimeRemaining > 0n ? new Date((now + Number(communityTimeRemaining)) * 1000).toISOString() : null
 
     // Calculate countdown for announced sunsets
-    const now = Math.floor(Date.now() / 1000)
-    const countdownSeconds = sunsetAnnounced && sunsetExecutableAt > now 
-      ? Number(sunsetExecutableAt) - now 
+    const currentTime = Math.floor(Date.now() / 1000)
+    const countdownSeconds = sunsetAnnounced && sunsetExecutableAt > currentTime 
+      ? Number(sunsetExecutableAt) - currentTime 
       : 0
 
     const response = {
