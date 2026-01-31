@@ -371,9 +371,11 @@ contract SunsetRegistry is Ownable {
         uint256 executableAt = project.sunsetAnnouncedAt + ANNOUNCEMENT_PERIOD;
         if (block.timestamp < executableAt) revert AnnouncementPeriodNotMet();
         
+        // State change BEFORE external call (CEI pattern)
+        project.active = false;
+        
         // NOW we trigger and snapshot
         ISunsetVault(vault).triggerSunset(token);
-        project.active = false;
         
         emit SunsetExecuted(token, msg.sender);
     }

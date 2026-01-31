@@ -1,0 +1,220 @@
+/Users/starl3xx/Library/Python/3.9/lib/python/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+'forge clean' running (wd: /Users/starl3xx/clawd/projects/sunset-protocol)
+'forge config --json' running
+'forge build --build-info contracts' running (wd: /Users/starl3xx/clawd/projects/sunset-protocol)
+INFO:Detectors:
+Detector: arbitrary-send-eth
+FeeSplitter.claimAndSplitETH() (contracts/FeeSplitter.sol#127-146) sends eth to arbitrary user
+	Dangerous calls:
+	- ISunsetVault(sunsetVault).deposit{value: sunsetAmount}(token) (contracts/FeeSplitter.sol#136)
+	- (success,None) = owner.call{value: projectAmount}() (contracts/FeeSplitter.sol#141)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#functions-that-send-ether-to-arbitrary-destinations
+INFO:Detectors:
+Detector: incorrect-equality
+FeeSplitter.claimAndSplitETH() (contracts/FeeSplitter.sol#127-146) uses a dangerous strict equality:
+	- balance == 0 (contracts/FeeSplitter.sol#129)
+FeeSplitter.claimAndSplitToken(address) (contracts/FeeSplitter.sol#151-176) uses a dangerous strict equality:
+	- balance == 0 (contracts/FeeSplitter.sol#153)
+FeeSplitter.claimAndSplitWETH() (contracts/FeeSplitter.sol#104-123) uses a dangerous strict equality:
+	- balance == 0 (contracts/FeeSplitter.sol#106)
+SunsetVault.claim(address) (contracts/SunsetVault.sol#297-321) uses a dangerous strict equality:
+	- holderBalance == 0 (contracts/SunsetVault.sol#303)
+SunsetVault.claim(address) (contracts/SunsetVault.sol#297-321) uses a dangerous strict equality:
+	- amount == 0 (contracts/SunsetVault.sol#310)
+SunsetVault.getClaimableAmount(address,address) (contracts/SunsetVault.sol#324-337) uses a dangerous strict equality:
+	- holderBalance == 0 (contracts/SunsetVault.sol#333)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#dangerous-strict-equalities
+INFO:Detectors:
+Detector: reentrancy-no-eth
+Reentrancy in SunsetRegistry.executeSunset(address) (contracts/SunsetRegistry.sol#366-379):
+	External calls:
+	- ISunsetVault(vault).triggerSunset(token) (contracts/SunsetRegistry.sol#375)
+	State variables written after the call(s):
+	- project.active = false (contracts/SunsetRegistry.sol#376)
+	SunsetRegistry.projects (contracts/SunsetRegistry.sol#74) can be used in cross function reentrancies:
+	- SunsetRegistry.announceSunset(address) (contracts/SunsetRegistry.sol#335-362)
+	- SunsetRegistry.canCommunityTrigger(address) (contracts/SunsetRegistry.sol#445-454)
+	- SunsetRegistry.canOwnerTrigger(address) (contracts/SunsetRegistry.sol#434-443)
+	- SunsetRegistry.cancelSunset(address) (contracts/SunsetRegistry.sol#382-394)
+	- SunsetRegistry.executeSunset(address) (contracts/SunsetRegistry.sol#366-379)
+	- SunsetRegistry.getProject(address) (contracts/SunsetRegistry.sol#398-417)
+	- SunsetRegistry.getSunsetStatus(address) (contracts/SunsetRegistry.sol#419-432)
+	- SunsetRegistry.isActive(address) (contracts/SunsetRegistry.sol#468-470)
+	- SunsetRegistry.isRegistered(address) (contracts/SunsetRegistry.sol#464-466)
+	- SunsetRegistry.projects (contracts/SunsetRegistry.sol#74)
+	- SunsetRegistry.recordDeposit(address,uint256) (contracts/SunsetRegistry.sol#315-329)
+	- SunsetRegistry.register(address,address,SunsetRegistry.Tier) (contracts/SunsetRegistry.sol#281-312)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-1
+INFO:Detectors:
+Detector: unused-return
+FeeSplitter.constructor(address,address,address,address,uint256) (contracts/FeeSplitter.sol#76-96) ignores return value by IERC20(_weth).approve(_sunsetVault,type()(uint256).max) (contracts/FeeSplitter.sol#95)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#unused-return
+INFO:Detectors:
+Detector: shadowing-local
+SunsetRegistry.getProject(address).owner (contracts/SunsetRegistry.sol#399) shadows:
+	- Ownable.owner() (lib/openzeppelin-contracts/contracts/access/Ownable.sol#56-58) (function)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#local-variable-shadowing
+INFO:Detectors:
+Detector: missing-zero-check
+SunsetVault.constructor(address)._weth (contracts/SunsetVault.sol#127) lacks a zero-check on :
+		- weth = _weth (contracts/SunsetVault.sol#128)
+SunsetVault.setRegistry(address)._registry (contracts/SunsetVault.sol#221) lacks a zero-check on :
+		- registry = _registry (contracts/SunsetVault.sol#222)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#missing-zero-address-validation
+INFO:Detectors:
+Detector: reentrancy-benign
+Reentrancy in SunsetVault.depositWETH(address,uint256) (contracts/SunsetVault.sol#259-276):
+	External calls:
+	- IWETH(weth).withdraw(amount) (contracts/SunsetVault.sol#268)
+	State variables written after the call(s):
+	- coverage[token].depositedAmount += amount (contracts/SunsetVault.sol#271)
+	- ethBalances[token] += amount (contracts/SunsetVault.sol#270)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-2
+INFO:Detectors:
+Detector: reentrancy-events
+Reentrancy in FeeSplitter.claimAndSplitETH() (contracts/FeeSplitter.sol#127-146):
+	External calls:
+	- ISunsetVault(sunsetVault).deposit{value: sunsetAmount}(token) (contracts/FeeSplitter.sol#136)
+	- (success,None) = owner.call{value: projectAmount}() (contracts/FeeSplitter.sol#141)
+	Event emitted after the call(s):
+	- FeesClaimed(address(0),projectAmount,sunsetAmount) (contracts/FeeSplitter.sol#145)
+Reentrancy in FeeSplitter.claimAndSplitToken(address) (contracts/FeeSplitter.sol#151-176):
+	External calls:
+	- success = IERC20(feeToken).transfer(owner,projectAmount) (contracts/FeeSplitter.sol#168)
+	Event emitted after the call(s):
+	- FeesClaimed(feeToken,projectAmount,sunsetAmount) (contracts/FeeSplitter.sol#175)
+Reentrancy in FeeSplitter.claimAndSplitWETH() (contracts/FeeSplitter.sol#104-123):
+	External calls:
+	- ISunsetVault(sunsetVault).depositWETH(token,sunsetAmount) (contracts/FeeSplitter.sol#113)
+	- success = IERC20(weth).transfer(owner,projectAmount) (contracts/FeeSplitter.sol#118)
+	Event emitted after the call(s):
+	- FeesClaimed(weth,projectAmount,sunsetAmount) (contracts/FeeSplitter.sol#122)
+Reentrancy in SunsetVault.deposit(address) (contracts/SunsetVault.sol#242-256):
+	External calls:
+	- ISunsetRegistry(registry).recordDeposit(token,msg.value) (contracts/SunsetVault.sol#253)
+	Event emitted after the call(s):
+	- Deposited(token,msg.value,ethBalances[token]) (contracts/SunsetVault.sol#255)
+Reentrancy in SunsetVault.depositWETH(address,uint256) (contracts/SunsetVault.sol#259-276):
+	External calls:
+	- IWETH(weth).withdraw(amount) (contracts/SunsetVault.sol#268)
+	- ISunsetRegistry(registry).recordDeposit(token,amount) (contracts/SunsetVault.sol#273)
+	Event emitted after the call(s):
+	- Deposited(token,amount,ethBalances[token]) (contracts/SunsetVault.sol#275)
+Reentrancy in SunsetRegistry.executeSunset(address) (contracts/SunsetRegistry.sol#366-379):
+	External calls:
+	- ISunsetVault(vault).triggerSunset(token) (contracts/SunsetRegistry.sol#375)
+	Event emitted after the call(s):
+	- SunsetExecuted(token,msg.sender) (contracts/SunsetRegistry.sol#378)
+Reentrancy in SunsetRegistry.register(address,address,SunsetRegistry.Tier) (contracts/SunsetRegistry.sol#281-312):
+	External calls:
+	- ISunsetVault(vault).authorizeSplitter(feeSplitter) (contracts/SunsetRegistry.sol#309)
+	Event emitted after the call(s):
+	- ProjectRegistered(token,msg.sender,feeSplitter,tier) (contracts/SunsetRegistry.sol#311)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-3
+INFO:Detectors:
+Detector: timestamp
+SunsetRegistry.executeAction(uint256) (contracts/SunsetRegistry.sol#203-236) uses timestamp for comparisons
+	Dangerous comparisons:
+	- block.timestamp < action.scheduledAt + TIMELOCK_DELAY (contracts/SunsetRegistry.sol#209)
+SunsetRegistry.getPendingAction(uint256) (contracts/SunsetRegistry.sol#253-272) uses timestamp for comparisons
+	Dangerous comparisons:
+	- (action.actionType,action.data,action.scheduledAt,action.scheduledAt + TIMELOCK_DELAY,block.timestamp >= action.scheduledAt + TIMELOCK_DELAY && ! action.executed && ! action.cancelled,action.executed,action.cancelled) (contracts/SunsetRegistry.sol#263-271)
+SunsetRegistry.announceSunset(address) (contracts/SunsetRegistry.sol#335-362) uses timestamp for comparisons
+	Dangerous comparisons:
+	- block.timestamp < project.registeredAt + minCoveragePeriod (contracts/SunsetRegistry.sol#346)
+	- block.timestamp < project.lastMeaningfulDeposit + inactivityThreshold (contracts/SunsetRegistry.sol#352)
+SunsetRegistry.executeSunset(address) (contracts/SunsetRegistry.sol#366-379) uses timestamp for comparisons
+	Dangerous comparisons:
+	- block.timestamp < executableAt (contracts/SunsetRegistry.sol#372)
+SunsetRegistry.getSunsetStatus(address) (contracts/SunsetRegistry.sol#419-432) uses timestamp for comparisons
+	Dangerous comparisons:
+	- canExecute = announced && block.timestamp >= executableAt && p.active (contracts/SunsetRegistry.sol#431)
+SunsetRegistry.canOwnerTrigger(address) (contracts/SunsetRegistry.sol#434-443) uses timestamp for comparisons
+	Dangerous comparisons:
+	- block.timestamp >= unlockTime (contracts/SunsetRegistry.sol#439)
+SunsetRegistry.canCommunityTrigger(address) (contracts/SunsetRegistry.sol#445-454) uses timestamp for comparisons
+	Dangerous comparisons:
+	- block.timestamp >= unlockTime (contracts/SunsetRegistry.sol#450)
+SunsetRegistry.isRegistered(address) (contracts/SunsetRegistry.sol#464-466) uses timestamp for comparisons
+	Dangerous comparisons:
+	- projects[token].owner != address(0) (contracts/SunsetRegistry.sol#465)
+SunsetVault.executeAction(uint256) (contracts/SunsetVault.sol#164-182) uses timestamp for comparisons
+	Dangerous comparisons:
+	- block.timestamp < action.scheduledAt + TIMELOCK_DELAY (contracts/SunsetVault.sol#170)
+SunsetVault.getPendingAction(uint256) (contracts/SunsetVault.sol#199-218) uses timestamp for comparisons
+	Dangerous comparisons:
+	- (action.actionType,action.data,action.scheduledAt,action.scheduledAt + TIMELOCK_DELAY,block.timestamp >= action.scheduledAt + TIMELOCK_DELAY && ! action.executed && ! action.cancelled,action.executed,action.cancelled) (contracts/SunsetVault.sol#209-217)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#block-timestamp
+INFO:Detectors:
+Detector: pragma
+4 different versions of Solidity are used:
+	- Version constraint ^0.8.20 is used by:
+		-^0.8.20 (contracts/FeeSplitter.sol#2)
+		-^0.8.20 (contracts/SunsetRegistry.sol#2)
+		-^0.8.20 (contracts/SunsetVault.sol#2)
+		-^0.8.20 (contracts/interfaces/ISunsetVault.sol#2)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/access/Ownable.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/Context.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/StorageSlot.sol#5)
+	- Version constraint ^0.8.24 is used by:
+		-^0.8.24 (contracts/MockToken.sol#2)
+		-^0.8.24 (contracts/interfaces/IERC20.sol#2)
+	- Version constraint >=0.6.2 is used by:
+		->=0.6.2 (lib/openzeppelin-contracts/contracts/interfaces/IERC1363.sol#4)
+	- Version constraint >=0.4.16 is used by:
+		->=0.4.16 (lib/openzeppelin-contracts/contracts/interfaces/IERC165.sol#4)
+		->=0.4.16 (lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol#4)
+		->=0.4.16 (lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol#4)
+		->=0.4.16 (lib/openzeppelin-contracts/contracts/utils/introspection/IERC165.sol#4)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#different-pragma-directives-are-used
+INFO:Detectors:
+Detector: solc-version
+Version constraint ^0.8.20 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)
+	- VerbatimInvalidDeduplication
+	- FullInlinerNonExpressionSplitArgumentEvaluationOrder
+	- MissingSideEffectsOnSelectorAccess.
+It is used by:
+	- ^0.8.20 (contracts/FeeSplitter.sol#2)
+	- ^0.8.20 (contracts/SunsetRegistry.sol#2)
+	- ^0.8.20 (contracts/SunsetVault.sol#2)
+	- ^0.8.20 (contracts/interfaces/ISunsetVault.sol#2)
+	- ^0.8.20 (lib/openzeppelin-contracts/contracts/access/Ownable.sol#4)
+	- ^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol#4)
+	- ^0.8.20 (lib/openzeppelin-contracts/contracts/utils/Context.sol#4)
+	- ^0.8.20 (lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol#4)
+	- ^0.8.20 (lib/openzeppelin-contracts/contracts/utils/StorageSlot.sol#5)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#incorrect-versions-of-solidity
+INFO:Detectors:
+Detector: low-level-calls
+Low level call in FeeSplitter.claimAndSplitETH() (contracts/FeeSplitter.sol#127-146):
+	- (success,None) = owner.call{value: projectAmount}() (contracts/FeeSplitter.sol#141)
+Low level call in SunsetVault.claim(address) (contracts/SunsetVault.sol#297-321):
+	- (success,None) = address(msg.sender).call{value: amount}() (contracts/SunsetVault.sol#317)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#low-level-calls
+INFO:Detectors:
+Detector: missing-inheritance
+SunsetVault (contracts/SunsetVault.sol#38-368) should inherit from ISunsetVault (contracts/interfaces/ISunsetVault.sol#4-23)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#missing-inheritance
+INFO:Detectors:
+Detector: naming-convention
+Parameter FeeSplitter.rescueTokens(address,address)._token (contracts/FeeSplitter.sol#205) is not in mixedCase
+Parameter SunsetRegistry.setPaused(bool)._paused (contracts/SunsetRegistry.sol#156) is not in mixedCase
+Parameter SunsetRegistry.setVault(address)._vault (contracts/SunsetRegistry.sol#275) is not in mixedCase
+Parameter SunsetVault.setPaused(bool)._paused (contracts/SunsetVault.sol#137) is not in mixedCase
+Parameter SunsetVault.setRegistry(address)._registry (contracts/SunsetVault.sol#221) is not in mixedCase
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#conformance-to-solidity-naming-conventions
+INFO:Detectors:
+Detector: constable-states
+MockToken.decimals (contracts/MockToken.sol#9) should be constant 
+MockToken.name (contracts/MockToken.sol#7) should be constant 
+MockToken.symbol (contracts/MockToken.sol#8) should be constant 
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#state-variables-that-could-be-declared-constant
+INFO:Detectors:
+Detector: immutable-states
+MockToken.totalSupply (contracts/MockToken.sol#10) should be immutable 
+SunsetVault.weth (contracts/SunsetVault.sol#66) should be immutable 
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#state-variables-that-could-be-declared-immutable
+INFO:Slither:contracts/ analyzed (20 contracts with 100 detectors), 45 result(s) found
