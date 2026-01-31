@@ -1,20 +1,14 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "Sunset Protocol - Graceful Exits for Agent Tokens",
-  description: "When your token sunsets, holders claim their share of accumulated fees. Graceful exits for the agent economy.",
+  title: "Sunset Protocol | Graceful exits for agent tokens",
+  description: "When tokens die, holders get value back. Fee stream coverage for Clanker, Bankr, and Clawnch tokens on Base.",
+  openGraph: {
+    title: "Sunset Protocol",
+    description: "Graceful exits for agent tokens. When tokens die, holders get value back.",
+    images: ["/og.png"],
+  },
 };
 
 export default function RootLayout({
@@ -24,9 +18,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className="min-h-screen antialiased">
         {children}
       </body>
     </html>
