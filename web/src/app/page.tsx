@@ -44,23 +44,17 @@ export default function Home() {
           </div>
 
           {/* Trust badges */}
-          <div className="mt-12 flex items-center justify-center gap-8 text-sm text-zinc-500 animate-fade-in-up delay-400">
+          <div className="mt-12 flex flex-wrap items-center justify-center gap-6 text-sm text-zinc-500 animate-fade-in-up delay-400">
             <span className="flex items-center gap-2">
-              <svg width="20" height="20" className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
+              <span className="text-green-400">✓</span>
               Clanker compatible
             </span>
             <span className="flex items-center gap-2">
-              <svg width="20" height="20" className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
+              <span className="text-green-400">✓</span>
               Bankr ready
             </span>
             <span className="flex items-center gap-2">
-              <svg width="20" height="20" className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
+              <span className="text-green-400">✓</span>
               Clawnch native
             </span>
           </div>
@@ -180,9 +174,7 @@ export default function Home() {
           </p>
           <Link href="/register" className="btn-primary text-lg inline-flex items-center gap-2 animate-pulse-glow">
             Protect your token
-            <svg width="20" height="20" className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
+            <span>→</span>
           </Link>
         </div>
       </section>
@@ -255,10 +247,8 @@ function FlowNode({ icon, label, sublabel, highlight = false }: { icon: string; 
 
 function FlowArrow() {
   return (
-    <div className="hidden md:block text-zinc-600">
-      <svg width="32" height="32" className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-      </svg>
+    <div className="hidden md:block text-zinc-600 text-2xl">
+      →
     </div>
   )
 }
@@ -306,9 +296,7 @@ function TierCard({
       <ul className="space-y-3">
         {features.map((feature, i) => (
           <li key={i} className="flex items-center gap-3 text-sm text-zinc-300">
-            <svg className="w-5 h-5 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-            </svg>
+            <span className="text-green-400 flex-shrink-0">✓</span>
             {feature}
           </li>
         ))}
