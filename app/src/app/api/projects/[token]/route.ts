@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAddress } from 'viem'
-import { publicClient, addresses, vaultAbi, registryAbi, getTierInfo, formatWei, isTokenRegistered } from '@/lib/contracts'
+import { publicClient, addresses, vaultAbi, registryAbi, getTierInfo, formatWei } from '@/lib/contracts'
 
 // Cache for 30 seconds
 const cache = new Map<string, { data: unknown; timestamp: number }>()
@@ -24,46 +24,57 @@ export async function GET(
       return NextResponse.json(cached.data)
     }
 
-    // Get project info
-    const [, splitter, owner, tier, registeredAt, active] = await publicClient.readContract({
+    // Get project info using getProject
+    const projectResult = await publicClient.readContract({
       address: addresses.registry,
       abi: registryAbi,
-      functionName: 'projects',
+      functionName: 'getProject',
       args: [token as `0x${string}`],
     })
+    const [owner, feeSplitter, tier, active, registeredAt, lastMeaningfulDeposit, totalDeposited] = projectResult
 
     // Check if registered
-    if (!active || splitter === '0x0000000000000000000000000000000000000000') {
+    if (!active || feeSplitter === '0x0000000000000000000000000000000000000000') {
       return NextResponse.json({ error: 'Token not registered' }, { status: 404 })
     }
 
-    // Get coverage info
-    const [deposited, effective, isSunset, snapshotSupply] = await publicClient.readContract({
+    // Get coverage info from vault
+    const coverageResult = await publicClient.readContract({
       address: addresses.vault,
       abi: vaultAbi,
-      functionName: 'getTotalCoverage',
+      functionName: 'getCoverage',
       args: [token as `0x${string}`],
     })
+    const [depositedAmount, actualBalance, snapshotSupply, snapshotBlock, triggered] = coverageResult
 
     const tierInfo = getTierInfo(Number(tier))
+    const effectiveCoverage = (Number(actualBalance) * tierInfo.multiplier) / 1e18
 
     const response = {
       token,
-      splitter,
+      feeSplitter,
       owner,
       tier: Number(tier),
       tierName: tierInfo.name,
       multiplier: tierInfo.multiplier,
       sunsetBps: tierInfo.bps,
       registeredAt: Number(registeredAt),
+      registeredAtISO: new Date(Number(registeredAt) * 1000).toISOString(),
       active,
       coverage: {
-        deposited: deposited.toString(),
-        depositedFormatted: `${formatWei(deposited)} ETH`,
-        effective: effective.toString(),
-        effectiveFormatted: `${formatWei(effective)} ETH`,
-        isSunset,
+        deposited: depositedAmount.toString(),
+        depositedFormatted: `${formatWei(depositedAmount)} ETH`,
+        actual: actualBalance.toString(),
+        actualFormatted: `${formatWei(actualBalance)} ETH`,
+        effective: effectiveCoverage.toFixed(6),
+        effectiveFormatted: `${effectiveCoverage.toFixed(6)} ETH`,
+        isSunset: triggered,
         snapshotSupply: snapshotSupply.toString(),
+        snapshotBlock: Number(snapshotBlock),
+      },
+      activity: {
+        lastMeaningfulDeposit: new Date(Number(lastMeaningfulDeposit) * 1000).toISOString(),
+        totalDeposited: formatWei(totalDeposited),
       },
     }
 

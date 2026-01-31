@@ -168,14 +168,16 @@ export const registryAbi = [
       { name: 'registeredAt', type: 'uint256' },
       { name: 'lastMeaningfulDeposit', type: 'uint256' },
       { name: 'totalDeposited', type: 'uint256' },
+      { name: 'sunsetAnnouncedAt', type: 'uint256' },
+      { name: 'sunsetAnnouncedBy', type: 'address' },
     ],
   },
 ] as const
 
 // Tier names and multipliers
 export const TIERS = {
-  0: { name: 'Standard', multiplier: 1.2 },
-  1: { name: 'Premium', multiplier: 1.5 },
+  0: { name: 'Standard', multiplier: 1.2, bps: 1000 },  // 10%
+  1: { name: 'Premium', multiplier: 1.5, bps: 1500 },   // 15%
 } as const
 
 export function getTierInfo(tier: number) {

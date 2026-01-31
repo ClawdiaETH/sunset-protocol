@@ -88,12 +88,13 @@ export async function GET(
       args: [token as `0x${string}`],
     })
 
-    const [deposited, actualBalance, , , triggered] = await publicClient.readContract({
+    const coverageResult = await publicClient.readContract({
       address: addresses.vault,
       abi: vaultAbi,
       functionName: 'getCoverage',
       args: [token as `0x${string}`],
-    }) as [bigint, bigint, bigint, bigint, boolean]
+    })
+    const [, actualBalance, , , triggered] = coverageResult
 
     const tierInfo = getTierInfo(Number(tier))
     const coverageStr = formatWei(actualBalance)

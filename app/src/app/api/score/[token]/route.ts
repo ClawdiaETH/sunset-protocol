@@ -7,8 +7,8 @@ const cache = new Map<string, { data: unknown; timestamp: number }>()
 const CACHE_TTL = 30 * 1000
 
 function calculateActivityScore(registeredAt: number): number {
-  const now = Math.floor(Date.now() / 1000)
-  const daysSinceRegistration = (now - registeredAt) / 86400
+  const currentTime = Math.floor(Date.now() / 1000)
+  const daysSinceRegistration = (currentTime - registeredAt) / 86400
   
   // More recent = higher score
   if (daysSinceRegistration < 7) return 20    // Less than a week
@@ -64,21 +64,23 @@ export async function GET(
       return NextResponse.json(response)
     }
 
-    // Get project info
-    const [, splitter, owner, tier, registeredAt, active] = await publicClient.readContract({
+    // Get project info using getProject
+    const projectResult = await publicClient.readContract({
       address: addresses.registry,
       abi: registryAbi,
-      functionName: 'projects',
+      functionName: 'getProject',
       args: [token as `0x${string}`],
     })
+    const [owner, feeSplitter, tier, active, registeredAt, lastMeaningfulDeposit, totalDeposited] = projectResult
 
     // Get coverage info
-    const [deposited, effective, isSunset] = await publicClient.readContract({
+    const coverageResult = await publicClient.readContract({
       address: addresses.vault,
       abi: vaultAbi,
-      functionName: 'getTotalCoverage',
+      functionName: 'getCoverage',
       args: [token as `0x${string}`],
     })
+    const [depositedAmount, actualBalance, snapshotSupply, snapshotBlock, triggered] = coverageResult
 
     // Calculate score breakdown
     const breakdown = {
@@ -90,7 +92,7 @@ export async function GET(
 
     // Coverage score (max 30 points)
     // Convert wei to ETH for scoring
-    const coverageEth = Number(deposited) / 1e18
+    const coverageEth = Number(actualBalance) / 1e18
     if (coverageEth >= 5) breakdown.coverage = 30
     else if (coverageEth >= 1) breakdown.coverage = 20
     else if (coverageEth >= 0.1) breakdown.coverage = 10
@@ -99,19 +101,18 @@ export async function GET(
 
     // Tier bonus (max 10 points)
     const tierNum = Number(tier)
-    if (tierNum >= 4) breakdown.tier = 10      // Elite
-    else if (tierNum === 3) breakdown.tier = 10 // Premium
-    else if (tierNum === 2) breakdown.tier = 5  // Standard
-    else breakdown.tier = 0                     // Basic/Growth
+    if (tierNum >= 1) breakdown.tier = 10  // Premium
+    else breakdown.tier = 5                 // Standard
 
     // Activity score (max 20 points)
     breakdown.activity = calculateActivityScore(Number(registeredAt))
 
     // Total score
     const score = Math.min(100, breakdown.registered + breakdown.coverage + breakdown.tier + breakdown.activity)
-    const status = getStatus(score, isSunset, true)
+    const status = getStatus(score, triggered, true)
 
     const tierInfo = getTierInfo(tierNum)
+    const effectiveCoverage = (Number(actualBalance) * tierInfo.multiplier) / 1e18
 
     const response = {
       token,
@@ -121,11 +122,11 @@ export async function GET(
       details: {
         tier: tierNum,
         tierName: tierInfo.name,
-        coverage: `${formatWei(deposited)} ETH`,
-        effectiveCoverage: `${formatWei(effective)} ETH`,
-        isSunset,
+        coverage: `${formatWei(actualBalance)} ETH`,
+        effectiveCoverage: `${effectiveCoverage.toFixed(6)} ETH`,
+        isSunset: triggered,
         registeredAt: Number(registeredAt),
-        splitter,
+        feeSplitter,
         owner,
       },
     }
