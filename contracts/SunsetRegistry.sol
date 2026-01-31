@@ -147,11 +147,11 @@ contract SunsetRegistry {
             tierFeeShare[tier]
         ));
         
-        // Register in vault
-        ISunsetVault(vault).registerToken(token, tierMultipliers[tier]);
+        // Authorize the splitter in vault (CRITICAL - must do before splitter can deposit)
+        ISunsetVault(vault).authorizeSplitter(splitter, true);
         
-        // Authorize the splitter
-        // Note: vault.authorizeSplitter would need to be called by vault admin
+        // Register token in vault with coverage multiplier
+        ISunsetVault(vault).registerToken(token, tierMultipliers[tier]);
         
         // Store project data
         projects[token] = Project({
@@ -210,6 +210,11 @@ contract SunsetRegistry {
     /// @notice Get all registered tokens
     function getRegisteredTokens() external view returns (address[] memory) {
         return registeredTokens;
+    }
+
+    /// @notice Get total project count (for frontend)
+    function getProjectCount() external view returns (uint256) {
+        return registeredTokens.length;
     }
 
     /// @notice Get active project count

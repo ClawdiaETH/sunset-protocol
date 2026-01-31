@@ -2,10 +2,11 @@
 pragma solidity ^0.8.24;
 
 import {IERC20} from "./interfaces/IERC20.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /// @title SunsetVault
 /// @notice Holds accumulated fees and handles claims when projects sunset
-contract SunsetVault {
+contract SunsetVault is ReentrancyGuard {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -150,7 +151,7 @@ contract SunsetVault {
     /// @notice Claim coverage payout for a sunset token
     /// @param token The sunset token
     /// @return amount The ETH amount claimed
-    function claim(address token) external returns (uint256 amount) {
+    function claim(address token) external nonReentrant returns (uint256 amount) {
         TokenCoverage storage cov = coverage[token];
         
         if (!cov.isSunset) revert NotSunset();
@@ -216,6 +217,20 @@ contract SunsetVault {
         }
         
         return amount;
+    }
+
+    /// @notice Get full coverage stats for a token (for frontend)
+    function getTotalCoverage(address token) external view returns (
+        uint256 deposited,
+        uint256 effective,
+        bool sunset,
+        uint256 snapshotSupply
+    ) {
+        TokenCoverage storage cov = coverage[token];
+        deposited = cov.totalDeposited;
+        effective = (deposited * cov.coverageMultiplier) / 10000;
+        sunset = cov.isSunset;
+        snapshotSupply = cov.snapshotSupply;
     }
 
     /*//////////////////////////////////////////////////////////////

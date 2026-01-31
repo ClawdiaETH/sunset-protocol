@@ -7,4 +7,6 @@ interface ISunsetVault {
     function claim(address token, address holder) external returns (uint256);
     function getCoverage(address token) external view returns (uint256);
     function isSunset(address token) external view returns (bool);
+    function registerToken(address token, uint256 multiplier) external;
+    function authorizeSplitter(address splitter, bool authorized) external;
 }
