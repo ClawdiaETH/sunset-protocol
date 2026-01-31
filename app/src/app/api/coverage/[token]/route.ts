@@ -80,6 +80,11 @@ export async function GET(
     let ownerTimeRemaining = 0n
     let communityCanTrigger = false
     let communityTimeRemaining = 0n
+    let sunsetAnnounced = false
+    let sunsetAnnouncedAt = 0n
+    let sunsetAnnouncedBy = '0x0000000000000000000000000000000000000000'
+    let sunsetExecutableAt = 0n
+    let sunsetCanExecute = false
 
     try {
       [ownerCanTrigger, ownerTimeRemaining] = await publicClient.readContract({
@@ -94,6 +99,12 @@ export async function GET(
         functionName: 'canCommunityTrigger',
         args: [token as `0x${string}`],
       })
+      ;[sunsetAnnounced, sunsetAnnouncedAt, sunsetAnnouncedBy, sunsetExecutableAt, sunsetCanExecute] = await publicClient.readContract({
+        address: addresses.registry,
+        abi: registryAbi,
+        functionName: 'getSunsetStatus',
+        args: [token as `0x${string}`],
+      })
     } catch {
       // Functions might not exist on old contracts
     }
@@ -105,6 +116,12 @@ export async function GET(
     const now = Math.floor(Date.now() / 1000)
     const ownerUnlockAt = ownerTimeRemaining > 0n ? new Date((now + Number(ownerTimeRemaining)) * 1000).toISOString() : null
     const communityUnlockAt = communityTimeRemaining > 0n ? new Date((now + Number(communityTimeRemaining)) * 1000).toISOString() : null
+
+    // Calculate countdown for announced sunsets
+    const now = Math.floor(Date.now() / 1000)
+    const countdownSeconds = sunsetAnnounced && sunsetExecutableAt > now 
+      ? Number(sunsetExecutableAt) - now 
+      : 0
 
     const response = {
       token,
@@ -133,7 +150,15 @@ export async function GET(
         communityUnlockAt,
         communityUnlockIn: Number(communityTimeRemaining),
       },
-      isSunset: triggered,
+      sunset: {
+        announced: sunsetAnnounced,
+        announcedAt: sunsetAnnounced ? new Date(Number(sunsetAnnouncedAt) * 1000).toISOString() : null,
+        announcedBy: sunsetAnnounced ? sunsetAnnouncedBy : null,
+        executableAt: sunsetAnnounced ? new Date(Number(sunsetExecutableAt) * 1000).toISOString() : null,
+        countdownSeconds,
+        canExecute: sunsetCanExecute,
+        triggered,
+      },
       snapshotSupply: snapshotSupply.toString(),
       snapshotBlock: Number(snapshotBlock),
     }

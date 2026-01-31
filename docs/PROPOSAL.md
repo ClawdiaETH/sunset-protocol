@@ -62,19 +62,54 @@ Token Launch → Fee Generation → Coverage Accumulates → Sunset Trigger → 
 
 ---
 
-## Sunset Triggers
+## Two-Step Sunset (Anti-Manipulation)
+
+Sunset uses a **48-hour announcement period** to prevent insider attacks:
+
+```
+Announce → 48hr wait → Execute (snapshot here) → Claims open
+           ↑
+           Price drops, market adjusts
+           No information asymmetry at snapshot
+```
+
+### Why Two Steps?
+
+**Attack vector (one-step):**
+```
+Insider knows → Triggers sunset → Buys cheap → Claims big
+               (snapshot)        (profit window)
+```
+
+**Two-step protection:**
+```
+Announces → Price drops → 48hrs → Executes → Claims
+                         (stabilizes) (snapshot)
+            
+Attacker buys here, but price already reflects sunset
+```
+
+### Who Can Announce
 
 | Trigger | Who Can Call | Condition |
 |---------|--------------|-----------|
 | **Owner Voluntary** | Project owner only | After 30 days from registration |
 | **Community Inactivity** | Anyone | 120 days since last meaningful deposit |
-| **Admin Emergency** | Protocol admin | Anytime (for emergencies only) |
+| **Admin Emergency** | Protocol admin | Anytime |
+
+### After Announcement
+
+- **48-hour countdown** starts
+- Owner/admin can **cancel** if needed
+- After 48 hours, **anyone** can call `executeSunset()`
+- Snapshot taken at execution, not announcement
 
 ### Why These Rules?
 
-- **30-day minimum**: Prevents quick rug schemes where owner registers, waits a day, then sunsets
-- **120-day inactivity**: If no meaningful fees flow for 4 months, project is dead
-- **0.001 ETH threshold**: Dust deposits don't count as "activity" — prevents gaming
+- **30-day minimum**: Prevents quick rug schemes
+- **120-day inactivity**: Dead projects get sunset by community
+- **48-hour announcement**: Eliminates information asymmetry
+- **0.001 ETH threshold**: Dust deposits don't reset inactivity clock
 
 ---
 
@@ -84,8 +119,8 @@ Token Launch → Fee Generation → Coverage Accumulates → Sunset Trigger → 
 
 | Contract | Description | Address (Sepolia) |
 |----------|-------------|-------------------|
-| `SunsetVault` | Holds ETH pools, handles claims | `0x96697d80b0f248717f336Da4E280fc9A1965c4e9` |
-| `SunsetRegistry` | Tracks projects, manages triggers | `0xAF664d1f1003d88f661546866E96625171222036` |
+| `SunsetVault` | Holds ETH pools, handles claims | `0x8d0Dc9E8A42743a0256fd40B70f463e4e0c587d9` |
+| `SunsetRegistry` | Tracks projects, manages triggers | `0xb79f515b55D4ea0f70b24C67F1650513cE45CC54` |
 | `FeeSplitter` | Splits WETH between project/Sunset | Deployed per-token |
 
 ### Flow
@@ -251,7 +286,7 @@ If $AGENT sunsets, holders split $600 pro-rata based on holdings.
 
 - **Twitter**: [@Clawdia_ETH](https://twitter.com/Clawdia_ETH)
 - **GitHub**: [ClawdiaETH/sunset-protocol](https://github.com/ClawdiaETH/sunset-protocol)
-- **Contracts**: [Base Sepolia](https://sepolia.basescan.org/address/0x96697d80b0f248717f336Da4E280fc9A1965c4e9)
+- **Contracts**: [Base Sepolia](https://sepolia.basescan.org/address/0x8d0Dc9E8A42743a0256fd40B70f463e4e0c587d9)
 
 ---
 

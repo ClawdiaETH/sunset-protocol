@@ -18,7 +18,8 @@ contract SunsetRegistry is Ownable {
     // ============ Constants ============
     uint256 public constant MIN_COVERAGE_PERIOD = 30 days;
     uint256 public constant INACTIVITY_THRESHOLD = 120 days;
-    uint256 public constant MIN_MEANINGFUL_DEPOSIT = 0.001 ether; // ~$3 at current prices
+    uint256 public constant MIN_MEANINGFUL_DEPOSIT = 0.001 ether;
+    uint256 public constant ANNOUNCEMENT_PERIOD = 48 hours;
 
     // ============ Enums ============
     enum Tier { Standard, Premium }
@@ -29,9 +30,11 @@ contract SunsetRegistry is Ownable {
         address feeSplitter;
         Tier tier;
         bool active;
-        uint256 registeredAt;           // When project was registered
-        uint256 lastMeaningfulDeposit;  // Last deposit above threshold
-        uint256 totalDeposited;         // Track total deposits
+        uint256 registeredAt;
+        uint256 lastMeaningfulDeposit;
+        uint256 totalDeposited;
+        uint256 sunsetAnnouncedAt;  // 0 = not announced
+        address sunsetAnnouncedBy;
     }
 
     // ============ State ============
@@ -47,10 +50,19 @@ contract SunsetRegistry is Ownable {
         address feeSplitter,
         Tier tier
     );
-    event SunsetRequested(
+    event SunsetAnnounced(
         address indexed token,
-        address indexed triggeredBy,
+        address indexed announcedBy,
+        uint256 executableAt,
         string reason
+    );
+    event SunsetExecuted(
+        address indexed token,
+        address indexed executedBy
+    );
+    event SunsetCancelled(
+        address indexed token,
+        address indexed cancelledBy
     );
     event FeeDeposited(
         address indexed token,
@@ -66,6 +78,9 @@ contract SunsetRegistry is Ownable {
     error StillActive();
     error VaultNotSet();
     error ZeroAddress();
+    error SunsetNotAnnounced();
+    error AnnouncementPeriodNotMet();
+    error SunsetAlreadyAnnounced();
 
     // ============ Constructor ============
     constructor(address _admin) Ownable(msg.sender) {
@@ -93,7 +108,6 @@ contract SunsetRegistry is Ownable {
         if (projects[token].owner != address(0)) revert AlreadyRegistered();
         if (vault == address(0)) revert VaultNotSet();
 
-        // Verify feeSplitter is for this token
         require(
             IFeeSplitter(feeSplitter).token() == token,
             "Splitter token mismatch"
@@ -107,21 +121,19 @@ contract SunsetRegistry is Ownable {
             tier: tier,
             active: true,
             registeredAt: currentTime,
-            lastMeaningfulDeposit: currentTime, // Start the clock
-            totalDeposited: 0
+            lastMeaningfulDeposit: currentTime,
+            totalDeposited: 0,
+            sunsetAnnouncedAt: 0,
+            sunsetAnnouncedBy: address(0)
         });
 
         registeredTokens.push(token);
-
-        // Authorize the splitter to deposit to vault
         ISunsetVault(vault).authorizeSplitter(feeSplitter);
 
         emit ProjectRegistered(token, msg.sender, feeSplitter, tier);
     }
 
     // ============ Fee Tracking ============
-    /// @notice Called by vault when fees are deposited
-    /// @dev Only vault can call this
     function recordDeposit(address token, uint256 amount) external {
         require(msg.sender == vault, "Only vault");
         
@@ -138,41 +150,73 @@ contract SunsetRegistry is Ownable {
         emit FeeDeposited(token, amount, meaningful);
     }
 
-    // ============ Sunset Triggers ============
-    /// @notice Request sunset for a token
-    /// @dev Multiple trigger conditions supported
-    function requestSunset(address token) external {
+    // ============ Two-Step Sunset ============
+
+    /// @notice Step 1: Announce sunset intention
+    /// @dev Starts the 48-hour countdown. No snapshot taken yet.
+    function announceSunset(address token) external {
         Project storage project = projects[token];
         if (!project.active) revert NotRegistered();
-
+        if (project.sunsetAnnouncedAt != 0) revert SunsetAlreadyAnnounced();
+        
         string memory reason;
-
-        // Check authorization
+        
         if (msg.sender == admin) {
-            // Admin can always trigger (emergency)
             reason = "admin_emergency";
-        } else if (msg.sender == project.owner) {
-            // Owner can trigger after minimum coverage period
+        } 
+        else if (msg.sender == project.owner) {
             if (block.timestamp < project.registeredAt + MIN_COVERAGE_PERIOD) {
                 revert CoveragePeriodNotMet();
             }
             reason = "owner_voluntary";
-        } else {
-            // Anyone can trigger if inactive for 120+ days
+        }
+        else {
             if (block.timestamp < project.lastMeaningfulDeposit + INACTIVITY_THRESHOLD) {
                 revert StillActive();
             }
             reason = "community_inactivity";
         }
+        
+        project.sunsetAnnouncedAt = block.timestamp;
+        project.sunsetAnnouncedBy = msg.sender;
+        
+        emit SunsetAnnounced(token, msg.sender, block.timestamp + ANNOUNCEMENT_PERIOD, reason);
+    }
 
-        // Trigger the sunset
+    /// @notice Step 2: Execute sunset after announcement period
+    /// @dev Anyone can call once period has passed. Snapshot taken here.
+    function executeSunset(address token) external {
+        Project storage project = projects[token];
+        if (!project.active) revert NotRegistered();
+        if (project.sunsetAnnouncedAt == 0) revert SunsetNotAnnounced();
+        
+        uint256 executableAt = project.sunsetAnnouncedAt + ANNOUNCEMENT_PERIOD;
+        if (block.timestamp < executableAt) revert AnnouncementPeriodNotMet();
+        
+        // NOW we trigger and snapshot
         ISunsetVault(vault).triggerSunset(token);
         project.active = false;
+        
+        emit SunsetExecuted(token, msg.sender);
+    }
 
-        emit SunsetRequested(token, msg.sender, reason);
+    /// @notice Cancel announced sunset (owner/admin only, before execution)
+    function cancelSunset(address token) external {
+        Project storage project = projects[token];
+        if (project.sunsetAnnouncedAt == 0) revert SunsetNotAnnounced();
+        if (!project.active) revert NotRegistered(); // Already executed
+        
+        bool isAuthorized = msg.sender == admin || msg.sender == project.owner;
+        if (!isAuthorized) revert NotAuthorized();
+        
+        project.sunsetAnnouncedAt = 0;
+        project.sunsetAnnouncedBy = address(0);
+        
+        emit SunsetCancelled(token, msg.sender);
     }
 
     // ============ View Functions ============
+    
     function getProject(address token) external view returns (
         address owner,
         address feeSplitter,
@@ -192,6 +236,21 @@ contract SunsetRegistry is Ownable {
             p.lastMeaningfulDeposit,
             p.totalDeposited
         );
+    }
+
+    function getSunsetStatus(address token) external view returns (
+        bool announced,
+        uint256 announcedAt,
+        address announcedBy,
+        uint256 executableAt,
+        bool canExecute
+    ) {
+        Project storage p = projects[token];
+        announced = p.sunsetAnnouncedAt != 0;
+        announcedAt = p.sunsetAnnouncedAt;
+        announcedBy = p.sunsetAnnouncedBy;
+        executableAt = announced ? p.sunsetAnnouncedAt + ANNOUNCEMENT_PERIOD : 0;
+        canExecute = announced && block.timestamp >= executableAt && p.active;
     }
 
     function canOwnerTrigger(address token) external view returns (bool, uint256) {

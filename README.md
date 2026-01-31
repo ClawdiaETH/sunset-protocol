@@ -8,8 +8,8 @@ When memecoins die, holders get rugged. Sunset Protocol changes that — project
 
 | Contract | Address |
 |----------|---------|
-| **Vault** | [`0x96697d80b0f248717f336Da4E280fc9A1965c4e9`](https://sepolia.basescan.org/address/0x96697d80b0f248717f336Da4E280fc9A1965c4e9) |
-| **Registry** | [`0xAF664d1f1003d88f661546866E96625171222036`](https://sepolia.basescan.org/address/0xAF664d1f1003d88f661546866E96625171222036) |
+| **Vault** | [`0x8d0Dc9E8A42743a0256fd40B70f463e4e0c587d9`](https://sepolia.basescan.org/address/0x8d0Dc9E8A42743a0256fd40B70f463e4e0c587d9) |
+| **Registry** | [`0xb79f515b55D4ea0f70b24C67F1650513cE45CC54`](https://sepolia.basescan.org/address/0xb79f515b55D4ea0f70b24C67F1650513cE45CC54) |
 
 ## The Problem
 
@@ -58,13 +58,36 @@ Agent tokens launched via Clanker/Bankr generate trading fees. But when activity
 | `SunsetRegistry.sol` | Tracks projects, trigger conditions, activity |
 | `FeeSplitter.sol` | Splits WETH/ETH fees between project and Sunset |
 
-## Sunset Triggers
+## Two-Step Sunset (Anti-Manipulation)
+
+Sunset uses a **48-hour announcement period** to prevent insider attacks:
+
+```
+Announce → 48hr wait → Execute (snapshot here) → Claims open
+           ↑
+           Price crashes and stabilizes
+           Attackers buy at fair "sunset" price
+           No information asymmetry at snapshot
+```
+
+### Sunset Flow
+
+1. **Announce** — Owner/community calls `announceSunset()`, starts 48-hour countdown
+2. **Wait** — Price discovery happens, market adjusts to sunset news
+3. **Execute** — Anyone calls `executeSunset()` after 48 hours, snapshot taken
+4. **Claim** — Holders claim pro-rata share based on balances at execution
+
+### Who Can Announce
 
 | Trigger | Who | Condition |
 |---------|-----|-----------|
 | **Owner Voluntary** | Project owner | After 30-day minimum coverage period |
 | **Community Inactivity** | Anyone | 120 days since last meaningful deposit (≥0.001 ETH) |
-| **Admin Emergency** | Protocol admin | Anytime (for emergencies) |
+| **Admin Emergency** | Protocol admin | Anytime |
+
+### Cancel
+
+Owner or admin can call `cancelSunset()` before execution to abort.
 
 ## Coverage Tiers
 
@@ -117,10 +140,19 @@ GET /api/coverage/0x...
     "totalDeposited": "1.5"
   },
   "triggers": {
-    "ownerCanTrigger": false,
-    "ownerUnlockIn": 1209600,
+    "ownerCanTrigger": true,
+    "ownerUnlockIn": 0,
     "communityCanTrigger": false,
     "communityUnlockIn": 15552000
+  },
+  "sunset": {
+    "announced": true,
+    "announcedAt": "2026-02-01T00:00:00Z",
+    "announcedBy": "0x...",
+    "executableAt": "2026-02-03T00:00:00Z",
+    "countdownSeconds": 84932,
+    "canExecute": false,
+    "triggered": false
   }
 }
 ```

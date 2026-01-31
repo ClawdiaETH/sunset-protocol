@@ -8,8 +8,8 @@ export const CONTRACTS = {
     registry: '0x0000000000000000000000000000000000000000' as const,
   },
   sepolia: {
-    vault: '0x96697d80b0f248717f336Da4E280fc9A1965c4e9' as const,
-    registry: '0xAF664d1f1003d88f661546866E96625171222036' as const,
+    vault: '0x8d0Dc9E8A42743a0256fd40B70f463e4e0c587d9' as const,
+    registry: '0xb79f515b55D4ea0f70b24C67F1650513cE45CC54' as const,
   },
 }
 
@@ -111,6 +111,19 @@ export const registryAbi = [
     outputs: [
       { name: 'canTrigger', type: 'bool' },
       { name: 'timeRemaining', type: 'uint256' },
+    ],
+  },
+  {
+    name: 'getSunsetStatus',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'token', type: 'address' }],
+    outputs: [
+      { name: 'announced', type: 'bool' },
+      { name: 'announcedAt', type: 'uint256' },
+      { name: 'announcedBy', type: 'address' },
+      { name: 'executableAt', type: 'uint256' },
+      { name: 'canExecute', type: 'bool' },
     ],
   },
   {
