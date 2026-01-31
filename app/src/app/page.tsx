@@ -44,7 +44,7 @@ export default function Home() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-8 animate-fade-in-up">
             <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
-            <span className="text-sm text-zinc-300">Testing on Base Fork</span>
+            <span className="text-sm text-zinc-300">Testing on Base Sepolia</span>
           </div>
 
           {/* Main heading */}
@@ -63,16 +63,21 @@ export default function Home() {
 
           {/* CTA buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up delay-300">
-            <Link href="/token/0x0000000000000000000000000000000000000000" className="btn-primary text-lg">
-              Register your token
-            </Link>
             <a 
               href="https://github.com/ClawdiaETH/sunset-protocol/blob/main/docs/PROPOSAL.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-primary text-lg"
+            >
+              Register your token
+            </a>
+            <a 
+              href="https://sepolia.basescan.org/address/0x8d0Dc9E8A42743a0256fd40B70f463e4e0c587d9"
               target="_blank"
               rel="noopener noreferrer" 
               className="btn-secondary text-lg"
             >
-              Debug contracts
+              View contracts
             </a>
           </div>
 
@@ -90,6 +95,81 @@ export default function Home() {
               <span className="text-green-400">✓</span>
               Clawnch native
             </span>
+          </div>
+        </div>
+      </section>
+
+      {/* What is Sunset Protocol - NEW EXPLAINER SECTION */}
+      <section className="py-20 px-4 border-t border-white/5">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold mb-4">What is Sunset Protocol?</h2>
+            <p className="text-zinc-400 text-lg">Insurance for the agent token economy</p>
+          </div>
+          
+          <div className="glass rounded-2xl p-8 md:p-10 space-y-6">
+            <div className="space-y-4">
+              <h3 className="text-xl font-semibold text-orange-400">The Problem</h3>
+              <p className="text-zinc-300 leading-relaxed">
+                Agent tokens launched via Clanker, Bankr, and Clawnch generate real trading fees. 
+                But when activity dies, liquidity drains, holders can&apos;t exit, and value evaporates. 
+                Most tokens eventually sunset — the question is whether holders get zero or something.
+              </p>
+            </div>
+            
+            <div className="space-y-4">
+              <h3 className="text-xl font-semibold text-orange-400">The Solution</h3>
+              <p className="text-zinc-300 leading-relaxed">
+                Sunset Protocol collects a small percentage (10-15%) of your token&apos;s trading fees into a coverage pool. 
+                When sunset triggers, these accumulated fees are distributed <span className="text-white font-medium">pro-rata</span> to 
+                all token holders based on their holdings at the time of sunset.
+              </p>
+            </div>
+            
+            <div className="space-y-4">
+              <h3 className="text-xl font-semibold text-orange-400">Two-Step Sunset (Anti-Manipulation)</h3>
+              <p className="text-zinc-300 leading-relaxed">
+                To prevent insider attacks, sunset uses a <span className="text-white font-medium">48-hour announcement period</span>:
+              </p>
+              <div className="flex flex-col md:flex-row items-center justify-center gap-4 py-4 text-sm">
+                <div className="px-4 py-2 rounded-lg bg-white/5 border border-white/10">
+                  <span className="text-orange-400">1.</span> Announce
+                </div>
+                <span className="text-zinc-600">→</span>
+                <div className="px-4 py-2 rounded-lg bg-orange-500/10 border border-orange-500/30">
+                  <span className="text-orange-400">48hr wait</span>
+                </div>
+                <span className="text-zinc-600">→</span>
+                <div className="px-4 py-2 rounded-lg bg-white/5 border border-white/10">
+                  <span className="text-orange-400">2.</span> Execute
+                </div>
+                <span className="text-zinc-600">→</span>
+                <div className="px-4 py-2 rounded-lg bg-green-500/10 border border-green-500/30">
+                  <span className="text-green-400">Claims open</span>
+                </div>
+              </div>
+              <p className="text-zinc-400 text-sm">
+                The snapshot happens at execution, not announcement — so there&apos;s no information advantage for insiders.
+              </p>
+            </div>
+            
+            <div className="space-y-4">
+              <h3 className="text-xl font-semibold text-orange-400">Trigger Conditions</h3>
+              <ul className="space-y-2 text-zinc-300">
+                <li className="flex items-start gap-3">
+                  <span className="text-orange-400 mt-1">•</span>
+                  <span><span className="text-white">Owner voluntary:</span> After 30 days, project owner can announce sunset</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-orange-400 mt-1">•</span>
+                  <span><span className="text-white">Community inactivity:</span> Anyone can trigger after 120 days of no meaningful deposits</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-orange-400 mt-1">•</span>
+                  <span><span className="text-white">Admin emergency:</span> Protocol admin can trigger for critical issues</span>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
       </section>
@@ -148,7 +228,7 @@ export default function Home() {
             <div className="flex flex-col md:flex-row items-center justify-between gap-8">
               <FlowNode icon="💱" label="Trades" sublabel="Volume" />
               <FlowArrow />
-              <FlowNode icon="✂️" label="Splitter" sublabel="10%" highlight />
+              <FlowNode icon="✂️" label="Splitter" sublabel="10-15%" highlight />
               <FlowArrow />
               <FlowNode icon="🏦" label="Vault" sublabel="Coverage" />
               <FlowArrow />
@@ -158,28 +238,27 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Tiers */}
+      {/* Tiers - Updated to match actual contract */}
       <section className="py-20 px-4 border-t border-white/5">
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold mb-4">Coverage tiers</h2>
             <p className="text-zinc-400 text-lg">Choose the protection level that fits your project</p>
           </div>
           
-          <div className="grid md:grid-cols-3 gap-6">
-            <TierCard
-              name="Basic"
-              feeShare="5%"
-              multiplier="1x"
-              description="Entry-level coverage for smaller projects"
-              features={['Fee stream coverage', 'Pro-rata claims', 'Basic support']}
-            />
+          <div className="grid md:grid-cols-2 gap-8">
             <TierCard
               name="Standard"
               feeShare="10%"
               multiplier="1.2x"
               description="Recommended for most agent tokens"
-              features={['1.2x coverage multiplier', 'Priority claims', 'Dashboard access']}
+              features={[
+                'Fee stream coverage',
+                'Pro-rata claims on sunset',
+                '1.2x coverage multiplier',
+                '30-day minimum coverage period',
+                'Two-step sunset protection',
+              ]}
               featured
             />
             <TierCard
@@ -187,8 +266,62 @@ export default function Home() {
               feeShare="15%"
               multiplier="1.5x"
               description="Maximum protection for high-value tokens"
-              features={['1.5x coverage multiplier', 'Cross-subsidy pool', 'Premium support']}
+              features={[
+                'Everything in Standard',
+                '1.5x coverage multiplier',
+                'Higher effective coverage',
+                'Priority for future features',
+                'Cross-subsidy eligibility',
+              ]}
             />
+          </div>
+        </div>
+      </section>
+
+      {/* API Section */}
+      <section className="py-20 px-4 border-t border-white/5">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold mb-4">REST API</h2>
+            <p className="text-zinc-400 text-lg">Integrate coverage checks into your app</p>
+          </div>
+          
+          <div className="glass rounded-2xl p-8 space-y-6 font-mono text-sm">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <span className="px-2 py-1 rounded bg-green-500/20 text-green-400 text-xs font-bold">GET</span>
+                <code className="text-zinc-300">/api/coverage/[token]</code>
+              </div>
+              <p className="text-zinc-500 font-sans text-sm">Full coverage info, trigger status, sunset announcement state</p>
+            </div>
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <span className="px-2 py-1 rounded bg-green-500/20 text-green-400 text-xs font-bold">GET</span>
+                <code className="text-zinc-300">/api/claimable/[token]/[holder]</code>
+              </div>
+              <p className="text-zinc-500 font-sans text-sm">Check claimable amount for a specific holder</p>
+            </div>
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <span className="px-2 py-1 rounded bg-green-500/20 text-green-400 text-xs font-bold">GET</span>
+                <code className="text-zinc-300">/api/score/[token]</code>
+              </div>
+              <p className="text-zinc-500 font-sans text-sm">Health score (0-100) with breakdown</p>
+            </div>
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <span className="px-2 py-1 rounded bg-green-500/20 text-green-400 text-xs font-bold">GET</span>
+                <code className="text-zinc-300">/api/projects</code>
+              </div>
+              <p className="text-zinc-500 font-sans text-sm">List all registered projects with coverage amounts</p>
+            </div>
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <span className="px-2 py-1 rounded bg-blue-500/20 text-blue-400 text-xs font-bold">FRAME</span>
+                <code className="text-zinc-300">/api/frame/[token]</code>
+              </div>
+              <p className="text-zinc-500 font-sans text-sm">Farcaster Frame for social sharing</p>
+            </div>
           </div>
         </div>
       </section>
@@ -217,6 +350,41 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Contracts Section */}
+      <section className="py-16 px-4 border-t border-white/5">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold mb-2">Contracts (Base Sepolia)</h2>
+            <p className="text-zinc-500 text-sm">v3 — Two-step sunset with 48hr announcement</p>
+          </div>
+          
+          <div className="glass rounded-xl p-6 space-y-4 font-mono text-sm">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
+              <span className="text-zinc-500">SunsetVault:</span>
+              <a 
+                href="https://sepolia.basescan.org/address/0x8d0Dc9E8A42743a0256fd40B70f463e4e0c587d9"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-orange-400 hover:underline break-all"
+              >
+                0x8d0Dc9E8A42743a0256fd40B70f463e4e0c587d9
+              </a>
+            </div>
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
+              <span className="text-zinc-500">SunsetRegistry:</span>
+              <a 
+                href="https://sepolia.basescan.org/address/0xb79f515b55D4ea0f70b24C67F1650513cE45CC54"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-orange-400 hover:underline break-all"
+              >
+                0xb79f515b55D4ea0f70b24C67F1650513cE45CC54
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="py-12 px-4 border-t border-white/5">
         <div className="max-w-5xl mx-auto">
@@ -224,14 +392,6 @@ export default function Home() {
             <div className="flex items-center gap-3">
               <span className="text-2xl">🌅</span>
               <span className="font-semibold">Sunset Protocol</span>
-              <a 
-                href="https://sepolia.basescan.org/address/0x8d0Dc9E8A42743a0256fd40B70f463e4e0c587d9"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-orange-400 hover:underline ml-2"
-              >
-                Live Vault
-              </a>
             </div>
             
             <div className="flex items-center gap-8 text-sm text-zinc-500">
@@ -317,7 +477,7 @@ function TierCard({
   return (
     <div className={`rounded-2xl p-8 transition-all duration-300 ${
       featured 
-        ? 'bg-gradient-to-b from-orange-500/10 to-transparent border-2 border-orange-500/30 scale-105 glow-subtle' 
+        ? 'bg-gradient-to-b from-orange-500/10 to-transparent border-2 border-orange-500/30 glow-subtle' 
         : 'card'
     }`}>
       {featured && (
@@ -334,7 +494,7 @@ function TierCard({
           <span className="font-semibold text-lg">{feeShare}</span>
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-zinc-500">Coverage</span>
+          <span className="text-zinc-500">Coverage multiplier</span>
           <span className="font-semibold text-lg gradient-text">{multiplier}</span>
         </div>
       </div>
