@@ -1,5 +1,7 @@
 # Sunset Protocol 🌅
 
+**ENS:** sunsetprotocol.eth 🌅
+
 **Graceful exits for agent tokens.**
 
 When memecoins die, holders get rugged. Sunset Protocol changes that — projects pay a small fee tribute for coverage, and when they sunset, remaining value goes back to holders instead of vanishing.
