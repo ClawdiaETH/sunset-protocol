@@ -90,19 +90,19 @@ export default function Home() {
             <div className="flex justify-between">
               <span className="text-gray-400">Vault:</span>
               <a 
-                href="https://sepolia.basescan.org/address/0xb1AB04E7ee37eE9e18D2ca9E43D5CE05a0C56A43"
+                href="https://sepolia.basescan.org/address/0x8d0Dc9E8A42743a0256fd40B70f463e4e0c587d9"
                 className="text-orange-400 hover:underline"
               >
-                0xb1AB04E7ee37eE9e18D2ca9E43D5CE05a0C56A43
+                0x8d0Dc9E8A42743a0256fd40B70f463e4e0c587d9
               </a>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">Registry:</span>
               <a 
-                href="https://sepolia.basescan.org/address/0x01367cDB35C996d4E30c9e17FAcdeB3624778a9a"
+                href="https://sepolia.basescan.org/address/0xb79f515b55D4ea0f70b24C67F1650513cE45CC54"
                 className="text-orange-400 hover:underline"
               >
-                0x01367cDB35C996d4E30c9e17FAcdeB3624778a9a
+                0xb79f515b55D4ea0f70b24C67F1650513cE45CC54
               </a>
             </div>
           </div>
