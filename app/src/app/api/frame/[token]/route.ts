@@ -88,16 +88,16 @@ export async function GET(
       args: [token as `0x${string}`],
     })
 
-    const [deposited, effective, isSunset] = await publicClient.readContract({
+    const [deposited, actualBalance, , , triggered] = await publicClient.readContract({
       address: addresses.vault,
       abi: vaultAbi,
-      functionName: 'getTotalCoverage',
+      functionName: 'getCoverage',
       args: [token as `0x${string}`],
-    })
+    }) as [bigint, bigint, bigint, bigint, boolean]
 
     const tierInfo = getTierInfo(Number(tier))
-    const coverageStr = formatWei(effective)
-    const status = isSunset ? 'Sunset' : 'Active'
+    const coverageStr = formatWei(actualBalance)
+    const status = triggered ? 'Sunset' : 'Active'
 
     // Generate OG image URL with params
     const imageUrl = `${APP_URL}/api/og/coverage?token=${token}&coverage=${coverageStr}&tier=${tierInfo.name}&status=${status}`
