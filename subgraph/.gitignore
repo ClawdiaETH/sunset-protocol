@@ -1,0 +1,10 @@
+# Dependencies
+node_modules/
+
+# Build artifacts
+build/
+generated/
+
+# Local development
+.env
+.env.local

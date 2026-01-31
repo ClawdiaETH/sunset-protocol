@@ -4,6 +4,17 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+/**
+ * @title SunsetRegistry
+ * @notice Registry for token sunset coverage tracking
+ * @dev SECURITY RECOMMENDATIONS:
+ *      - Deploy with a multi-sig as owner (Gnosis Safe recommended)
+ *      - Use 2-of-3 or 3-of-5 threshold for mainnet
+ *      - Admin should also be a multi-sig for emergency controls
+ *      - Consider using OpenZeppelin Defender for monitoring
+ *      - Tier parameter changes are timelocked (24h) to protect users
+ */
+
 interface ISunsetVault {
     function triggerSunset(address token) external;
     function getActualBalance(address token) external view returns (uint256);
@@ -16,13 +27,23 @@ interface IFeeSplitter {
 
 contract SunsetRegistry is Ownable {
     // ============ Constants ============
-    uint256 public constant MIN_COVERAGE_PERIOD = 30 days;
-    uint256 public constant INACTIVITY_THRESHOLD = 120 days;
-    uint256 public constant MIN_MEANINGFUL_DEPOSIT = 0.001 ether;
+    uint256 public constant TIMELOCK_DELAY = 24 hours;
+    
+    // Default tier parameters (can be changed via timelock)
+    uint256 public minCoveragePeriod = 30 days;
+    uint256 public inactivityThreshold = 120 days;
+    uint256 public minMeaningfulDeposit = 0.001 ether;
     uint256 public constant ANNOUNCEMENT_PERIOD = 48 hours;
 
     // ============ Enums ============
     enum Tier { Standard, Premium }
+    
+    enum ActionType { 
+        SET_ADMIN,
+        SET_MIN_COVERAGE_PERIOD,
+        SET_INACTIVITY_THRESHOLD,
+        SET_MIN_MEANINGFUL_DEPOSIT
+    }
 
     // ============ Structs ============
     struct Project {
@@ -37,11 +58,25 @@ contract SunsetRegistry is Ownable {
         address sunsetAnnouncedBy;
     }
 
+    struct PendingAction {
+        ActionType actionType;
+        bytes data;
+        uint256 scheduledAt;
+        bool executed;
+        bool cancelled;
+    }
+
     // ============ State ============
     address public vault;
     address public admin;
+    bool public paused;
+    
     mapping(address => Project) public projects;
     address[] public registeredTokens;
+    
+    // Timelock state
+    uint256 public pendingActionCount;
+    mapping(uint256 => PendingAction) public pendingActions;
 
     // ============ Events ============
     event ProjectRegistered(
@@ -69,6 +104,14 @@ contract SunsetRegistry is Ownable {
         uint256 amount,
         bool meaningful
     );
+    event Paused(address indexed by, bool isPaused);
+    event AdminChanged(address indexed oldAdmin, address indexed newAdmin);
+    event ParameterChanged(string paramName, uint256 oldValue, uint256 newValue);
+    
+    // Timelock events
+    event ActionProposed(uint256 indexed actionId, ActionType actionType, uint256 executeAfter);
+    event ActionExecuted(uint256 indexed actionId, ActionType actionType);
+    event ActionCancelled(uint256 indexed actionId, ActionType actionType);
 
     // ============ Errors ============
     error NotRegistered();
@@ -81,11 +124,151 @@ contract SunsetRegistry is Ownable {
     error SunsetNotAnnounced();
     error AnnouncementPeriodNotMet();
     error SunsetAlreadyAnnounced();
+    error ContractPaused();
+    error ActionNotFound();
+    error ActionAlreadyExecuted();
+    error ActionAlreadyCancelled();
+    error TimelockNotExpired();
+    error InvalidParameter();
+
+    // ============ Modifiers ============
+    modifier whenNotPaused() {
+        if (paused) revert ContractPaused();
+        _;
+    }
+
+    modifier onlyAdmin() {
+        if (msg.sender != admin && msg.sender != owner()) revert NotAuthorized();
+        _;
+    }
 
     // ============ Constructor ============
     constructor(address _admin) Ownable(msg.sender) {
         if (_admin == address(0)) revert ZeroAddress();
         admin = _admin;
+    }
+
+    // ============ Emergency Functions ============
+    
+    /// @notice Pause or unpause the contract
+    /// @dev Only admin or owner can pause. Use for emergencies.
+    /// @param _paused True to pause, false to unpause
+    function setPaused(bool _paused) external onlyAdmin {
+        paused = _paused;
+        emit Paused(msg.sender, _paused);
+    }
+
+    // ============ Timelock Functions ============
+    
+    /// @notice Propose an admin change (24-hour timelock)
+    /// @param newAdmin The new admin address
+    /// @return actionId The ID of the pending action
+    function proposeSetAdmin(address newAdmin) external onlyOwner returns (uint256 actionId) {
+        if (newAdmin == address(0)) revert ZeroAddress();
+        
+        actionId = ++pendingActionCount;
+        pendingActions[actionId] = PendingAction({
+            actionType: ActionType.SET_ADMIN,
+            data: abi.encode(newAdmin),
+            scheduledAt: block.timestamp,
+            executed: false,
+            cancelled: false
+        });
+        
+        emit ActionProposed(actionId, ActionType.SET_ADMIN, block.timestamp + TIMELOCK_DELAY);
+    }
+
+    /// @notice Propose a tier parameter change (24-hour timelock)
+    /// @param actionType The parameter to change
+    /// @param newValue The new value
+    /// @return actionId The ID of the pending action
+    function proposeParameterChange(ActionType actionType, uint256 newValue) external onlyOwner returns (uint256 actionId) {
+        if (actionType == ActionType.SET_ADMIN) revert InvalidParameter(); // Use proposeSetAdmin
+        if (newValue == 0) revert InvalidParameter();
+        
+        actionId = ++pendingActionCount;
+        pendingActions[actionId] = PendingAction({
+            actionType: actionType,
+            data: abi.encode(newValue),
+            scheduledAt: block.timestamp,
+            executed: false,
+            cancelled: false
+        });
+        
+        emit ActionProposed(actionId, actionType, block.timestamp + TIMELOCK_DELAY);
+    }
+
+    /// @notice Execute a pending action after timelock expires
+    /// @param actionId The ID of the action to execute
+    function executeAction(uint256 actionId) external onlyOwner {
+        PendingAction storage action = pendingActions[actionId];
+        
+        if (action.scheduledAt == 0) revert ActionNotFound();
+        if (action.executed) revert ActionAlreadyExecuted();
+        if (action.cancelled) revert ActionAlreadyCancelled();
+        if (block.timestamp < action.scheduledAt + TIMELOCK_DELAY) revert TimelockNotExpired();
+        
+        action.executed = true;
+        
+        if (action.actionType == ActionType.SET_ADMIN) {
+            address newAdmin = abi.decode(action.data, (address));
+            address oldAdmin = admin;
+            admin = newAdmin;
+            emit AdminChanged(oldAdmin, newAdmin);
+        } else if (action.actionType == ActionType.SET_MIN_COVERAGE_PERIOD) {
+            uint256 newValue = abi.decode(action.data, (uint256));
+            uint256 oldValue = minCoveragePeriod;
+            minCoveragePeriod = newValue;
+            emit ParameterChanged("minCoveragePeriod", oldValue, newValue);
+        } else if (action.actionType == ActionType.SET_INACTIVITY_THRESHOLD) {
+            uint256 newValue = abi.decode(action.data, (uint256));
+            uint256 oldValue = inactivityThreshold;
+            inactivityThreshold = newValue;
+            emit ParameterChanged("inactivityThreshold", oldValue, newValue);
+        } else if (action.actionType == ActionType.SET_MIN_MEANINGFUL_DEPOSIT) {
+            uint256 newValue = abi.decode(action.data, (uint256));
+            uint256 oldValue = minMeaningfulDeposit;
+            minMeaningfulDeposit = newValue;
+            emit ParameterChanged("minMeaningfulDeposit", oldValue, newValue);
+        }
+        
+        emit ActionExecuted(actionId, action.actionType);
+    }
+
+    /// @notice Cancel a pending action
+    /// @param actionId The ID of the action to cancel
+    function cancelAction(uint256 actionId) external onlyOwner {
+        PendingAction storage action = pendingActions[actionId];
+        
+        if (action.scheduledAt == 0) revert ActionNotFound();
+        if (action.executed) revert ActionAlreadyExecuted();
+        if (action.cancelled) revert ActionAlreadyCancelled();
+        
+        action.cancelled = true;
+        
+        emit ActionCancelled(actionId, action.actionType);
+    }
+
+    /// @notice Get pending action details
+    function getPendingAction(uint256 actionId) external view returns (
+        ActionType actionType,
+        bytes memory data,
+        uint256 scheduledAt,
+        uint256 executeAfter,
+        bool canExecute,
+        bool executed,
+        bool cancelled
+    ) {
+        PendingAction storage action = pendingActions[actionId];
+        return (
+            action.actionType,
+            action.data,
+            action.scheduledAt,
+            action.scheduledAt + TIMELOCK_DELAY,
+            block.timestamp >= action.scheduledAt + TIMELOCK_DELAY && !action.executed && !action.cancelled,
+            action.executed,
+            action.cancelled
+        );
     }
 
     // ============ Admin Functions ============
@@ -94,17 +277,12 @@ contract SunsetRegistry is Ownable {
         vault = _vault;
     }
 
-    function setAdmin(address _admin) external onlyOwner {
-        if (_admin == address(0)) revert ZeroAddress();
-        admin = _admin;
-    }
-
     // ============ Registration ============
     function register(
         address token,
         address feeSplitter,
         Tier tier
-    ) external {
+    ) external whenNotPaused {
         if (projects[token].owner != address(0)) revert AlreadyRegistered();
         if (vault == address(0)) revert VaultNotSet();
 
@@ -142,7 +320,7 @@ contract SunsetRegistry is Ownable {
 
         project.totalDeposited += amount;
 
-        bool meaningful = amount >= MIN_MEANINGFUL_DEPOSIT;
+        bool meaningful = amount >= minMeaningfulDeposit;
         if (meaningful) {
             project.lastMeaningfulDeposit = block.timestamp;
         }
@@ -154,7 +332,7 @@ contract SunsetRegistry is Ownable {
 
     /// @notice Step 1: Announce sunset intention
     /// @dev Starts the 48-hour countdown. No snapshot taken yet.
-    function announceSunset(address token) external {
+    function announceSunset(address token) external whenNotPaused {
         Project storage project = projects[token];
         if (!project.active) revert NotRegistered();
         if (project.sunsetAnnouncedAt != 0) revert SunsetAlreadyAnnounced();
@@ -165,13 +343,13 @@ contract SunsetRegistry is Ownable {
             reason = "admin_emergency";
         } 
         else if (msg.sender == project.owner) {
-            if (block.timestamp < project.registeredAt + MIN_COVERAGE_PERIOD) {
+            if (block.timestamp < project.registeredAt + minCoveragePeriod) {
                 revert CoveragePeriodNotMet();
             }
             reason = "owner_voluntary";
         }
         else {
-            if (block.timestamp < project.lastMeaningfulDeposit + INACTIVITY_THRESHOLD) {
+            if (block.timestamp < project.lastMeaningfulDeposit + inactivityThreshold) {
                 revert StillActive();
             }
             reason = "community_inactivity";
@@ -185,7 +363,7 @@ contract SunsetRegistry is Ownable {
 
     /// @notice Step 2: Execute sunset after announcement period
     /// @dev Anyone can call once period has passed. Snapshot taken here.
-    function executeSunset(address token) external {
+    function executeSunset(address token) external whenNotPaused {
         Project storage project = projects[token];
         if (!project.active) revert NotRegistered();
         if (project.sunsetAnnouncedAt == 0) revert SunsetNotAnnounced();
@@ -257,7 +435,7 @@ contract SunsetRegistry is Ownable {
         Project storage p = projects[token];
         if (!p.active) return (false, 0);
         
-        uint256 unlockTime = p.registeredAt + MIN_COVERAGE_PERIOD;
+        uint256 unlockTime = p.registeredAt + minCoveragePeriod;
         if (block.timestamp >= unlockTime) {
             return (true, 0);
         }
@@ -268,7 +446,7 @@ contract SunsetRegistry is Ownable {
         Project storage p = projects[token];
         if (!p.active) return (false, 0);
         
-        uint256 unlockTime = p.lastMeaningfulDeposit + INACTIVITY_THRESHOLD;
+        uint256 unlockTime = p.lastMeaningfulDeposit + inactivityThreshold;
         if (block.timestamp >= unlockTime) {
             return (true, 0);
         }
@@ -289,5 +467,20 @@ contract SunsetRegistry is Ownable {
 
     function isActive(address token) external view returns (bool) {
         return projects[token].active;
+    }
+    
+    /// @notice Get current tier parameters
+    function getTierParameters() external view returns (
+        uint256 _minCoveragePeriod,
+        uint256 _inactivityThreshold,
+        uint256 _minMeaningfulDeposit,
+        uint256 _announcementPeriod
+    ) {
+        return (
+            minCoveragePeriod,
+            inactivityThreshold,
+            minMeaningfulDeposit,
+            ANNOUNCEMENT_PERIOD
+        );
     }
 }

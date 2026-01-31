@@ -1,0 +1,91 @@
+# Sunset Protocol Subgraph Schema
+
+enum Tier {
+  Standard
+  Premium
+}
+
+enum SunsetStatus {
+  Active
+  Announced
+  Executed
+  Cancelled
+}
+
+type Project @entity {
+  id: Bytes! # token address
+  token: Bytes!
+  owner: Bytes!
+  feeSplitter: Bytes!
+  tier: Tier!
+  active: Boolean!
+  registeredAt: BigInt!
+  totalDeposited: BigInt!
+  
+  # Sunset tracking
+  sunsetStatus: SunsetStatus!
+  sunsetAnnouncedAt: BigInt
+  sunsetAnnouncedBy: Bytes
+  sunsetExecutedAt: BigInt
+  sunsetExecutedBy: Bytes
+  executableAt: BigInt
+  reason: String
+  
+  # Coverage info (from vault)
+  snapshotSupply: BigInt
+  snapshotBlock: BigInt
+  actualBalance: BigInt
+  
+  # Relations
+  deposits: [Deposit!]! @derivedFrom(field: "project")
+  claims: [Claim!]! @derivedFrom(field: "project")
+  sunsetEvents: [SunsetEvent!]! @derivedFrom(field: "project")
+}
+
+type Deposit @entity {
+  id: Bytes! # tx hash + log index
+  project: Project!
+  token: Bytes!
+  amount: BigInt!
+  newBalance: BigInt!
+  meaningful: Boolean
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+}
+
+type Claim @entity {
+  id: Bytes! # tx hash + log index
+  project: Project!
+  token: Bytes!
+  holder: Bytes!
+  amount: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+}
+
+type SunsetEvent @entity {
+  id: Bytes! # tx hash + log index
+  project: Project!
+  token: Bytes!
+  eventType: String! # "Announced", "Executed", "Cancelled", "Triggered"
+  actor: Bytes!
+  reason: String
+  executableAt: BigInt
+  actualBalance: BigInt
+  snapshotSupply: BigInt
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+}
+
+# Global stats
+type Protocol @entity {
+  id: String! # "sunset-protocol"
+  totalProjects: BigInt!
+  activeProjects: BigInt!
+  sunsettedProjects: BigInt!
+  totalDeposited: BigInt!
+  totalClaimed: BigInt!
+}

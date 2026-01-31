@@ -1,0 +1,19 @@
+{
+  "name": "sunset-protocol-subgraph",
+  "version": "0.1.0",
+  "description": "Subgraph for Sunset Protocol - indexing all registry and vault events",
+  "license": "MIT",
+  "scripts": {
+    "codegen": "graph codegen",
+    "build": "graph build",
+    "deploy:hosted": "graph deploy --product hosted-service YOUR_GITHUB/sunset-protocol",
+    "deploy:studio": "graph deploy --studio sunset-protocol",
+    "create:local": "graph create --node http://localhost:8020/ sunset-protocol",
+    "remove:local": "graph remove --node http://localhost:8020/ sunset-protocol",
+    "deploy:local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 sunset-protocol"
+  },
+  "dependencies": {
+    "@graphprotocol/graph-cli": "^0.71.0",
+    "@graphprotocol/graph-ts": "^0.32.0"
+  }
+}

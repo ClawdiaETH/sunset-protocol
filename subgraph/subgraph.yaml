@@ -1,0 +1,64 @@
+specVersion: 0.0.5
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: SunsetRegistry
+    network: base-sepolia
+    source:
+      address: "0x0000000000000000000000000000000000000000" # Replace with deployed address
+      abi: SunsetRegistry
+      startBlock: 0 # Replace with deployment block
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Project
+        - SunsetEvent
+        - Deposit
+        - Protocol
+      abis:
+        - name: SunsetRegistry
+          file: ./abis/SunsetRegistry.json
+      eventHandlers:
+        - event: ProjectRegistered(indexed address,indexed address,address,uint8)
+          handler: handleProjectRegistered
+        - event: SunsetAnnounced(indexed address,indexed address,uint256,string)
+          handler: handleSunsetAnnounced
+        - event: SunsetExecuted(indexed address,indexed address)
+          handler: handleSunsetExecuted
+        - event: SunsetCancelled(indexed address,indexed address)
+          handler: handleSunsetCancelled
+        - event: FeeDeposited(indexed address,uint256,bool)
+          handler: handleFeeDeposited
+      file: ./src/mappings.ts
+
+  - kind: ethereum
+    name: SunsetVault
+    network: base-sepolia
+    source:
+      address: "0x0000000000000000000000000000000000000000" # Replace with deployed address
+      abi: SunsetVault
+      startBlock: 0 # Replace with deployment block
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Project
+        - SunsetEvent
+        - Deposit
+        - Claim
+        - Protocol
+      abis:
+        - name: SunsetVault
+          file: ./abis/SunsetVault.json
+      eventHandlers:
+        - event: Deposited(indexed address,uint256,uint256)
+          handler: handleDeposited
+        - event: SunsetTriggered(indexed address,uint256,uint256)
+          handler: handleSunsetTriggered
+        - event: Claimed(indexed address,indexed address,uint256)
+          handler: handleClaimed
+      file: ./src/mappings.ts
