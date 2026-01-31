@@ -1,0 +1,60 @@
+{
+  "name": "@sunset-protocol/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for Sunset Protocol - Graceful exits for agent tokens",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "ethereum",
+    "defi",
+    "sunset",
+    "protocol",
+    "viem",
+    "web3",
+    "agent-tokens",
+    "base"
+  ],
+  "author": "Sunset Protocol",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ClawdiaETH/sunset-protocol"
+  },
+  "homepage": "https://github.com/ClawdiaETH/sunset-protocol#readme",
+  "bugs": {
+    "url": "https://github.com/ClawdiaETH/sunset-protocol/issues"
+  },
+  "dependencies": {
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.6.0"
+  },
+  "peerDependencies": {
+    "viem": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

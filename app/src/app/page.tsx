@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import CoverageCalculator from './components/CoverageCalculator'
 
 export default function Home() {
   return (
@@ -277,6 +278,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Coverage Calculator */}
+      <CoverageCalculator />
 
       {/* API Section */}
       <section className="py-20 px-4 border-t border-white/5">
