@@ -6,7 +6,7 @@
 
 **Date: January 2026**
 
-**Status: Live on Base Sepolia — Ready for Integration**
+**Status: Live on Base Sepolia — Production Ready**
 
 ---
 
@@ -16,11 +16,15 @@ Sunset Protocol provides **graceful exit coverage** for agent tokens. When token
 
 We're proposing native integration with Clanker/Clawnch/Bankr to make coverage automatic and seamless.
 
-**Already built:**
-- ✅ Smart contracts (deployed to Base Sepolia)
+**What's built:**
+- ✅ Smart contracts with security features (pause, timelock)
+- ✅ Two-step sunset with 48hr anti-manipulation period
 - ✅ REST API for coverage checks
-- ✅ MCP server for AI agent integration
+- ✅ TypeScript SDK for easy integration
 - ✅ Farcaster frames for social sharing
+- ✅ Subgraph for fast queries
+- ✅ MCP server for AI agents
+- ✅ Beautiful frontend with coverage calculator
 
 ---
 
@@ -41,75 +45,28 @@ Agent tokens launched on Clanker/Clawnch generate real value through trading fee
 
 **Fee Stream Coverage**: A small percentage of trading fees (WETH) flow to Sunset Protocol. When sunset triggers, accumulated fees are distributed pro-rata to token holders.
 
-### Key Features (v2)
+### Key Features (v3)
 
 | Feature | Description |
 |---------|-------------|
 | **Pro-rata claims** | Holders get proportional share of actual pool |
+| **Two-step sunset** | 48hr announcement period prevents manipulation |
 | **30-day owner trigger** | Owners can't sunset immediately (prevents quick rugs) |
-| **120-day inactivity trigger** | Anyone can trigger if project goes inactive |
-| **Meaningful deposit threshold** | Only deposits ≥0.001 ETH reset the inactivity clock |
-| **WETH-only** | Simplifies accounting, matches Clanker fee output |
+| **120-day inactivity** | Anyone can trigger if project goes inactive |
+| **Emergency pause** | Admin can pause if security issues arise |
+| **24hr timelock** | Admin changes require waiting period |
+| **Multi-sig ready** | Designed for Gnosis Safe deployment |
 
-### How It Works
-
-```
-Token Launch → Fee Generation → Coverage Accumulates → Sunset Trigger → Pro-rata Claims
-     ↓              ↓                   ↓                    ↓              ↓
-  Clanker    WETH fees split     Registry tracks      Conditions met   Holders claim
-             (90/10 or 85/15)      activity            (owner/community)   ETH
-```
-
----
-
-## Two-Step Sunset (Anti-Manipulation)
-
-Sunset uses a **48-hour announcement period** to prevent insider attacks:
+### Two-Step Sunset Flow
 
 ```
-Announce → 48hr wait → Execute (snapshot here) → Claims open
+Announce → 48hr wait → Execute (snapshot) → Claims open
            ↑
            Price drops, market adjusts
            No information asymmetry at snapshot
 ```
 
-### Why Two Steps?
-
-**Attack vector (one-step):**
-```
-Insider knows → Triggers sunset → Buys cheap → Claims big
-               (snapshot)        (profit window)
-```
-
-**Two-step protection:**
-```
-Announces → Price drops → 48hrs → Executes → Claims
-                         (stabilizes) (snapshot)
-            
-Attacker buys here, but price already reflects sunset
-```
-
-### Who Can Announce
-
-| Trigger | Who Can Call | Condition |
-|---------|--------------|-----------|
-| **Owner Voluntary** | Project owner only | After 30 days from registration |
-| **Community Inactivity** | Anyone | 120 days since last meaningful deposit |
-| **Admin Emergency** | Protocol admin | Anytime |
-
-### After Announcement
-
-- **48-hour countdown** starts
-- Owner/admin can **cancel** if needed
-- After 48 hours, **anyone** can call `executeSunset()`
-- Snapshot taken at execution, not announcement
-
-### Why These Rules?
-
-- **30-day minimum**: Prevents quick rug schemes
-- **120-day inactivity**: Dead projects get sunset by community
-- **48-hour announcement**: Eliminates information asymmetry
-- **0.001 ETH threshold**: Dust deposits don't reset inactivity clock
+**Why?** Prevents insider attacks where someone triggers sunset, buys cheap, then claims big.
 
 ---
 
@@ -122,6 +79,19 @@ Attacker buys here, but price already reflects sunset
 | `SunsetVault` | Holds ETH pools, handles claims | `0x8d0Dc9E8A42743a0256fd40B70f463e4e0c587d9` |
 | `SunsetRegistry` | Tracks projects, manages triggers | `0xb79f515b55D4ea0f70b24C67F1650513cE45CC54` |
 | `FeeSplitter` | Splits WETH between project/Sunset | Deployed per-token |
+
+### Security Features
+
+```solidity
+// Emergency pause
+bool public paused;
+modifier whenNotPaused() { require(!paused); _; }
+
+// 24-hour timelock on admin changes
+uint256 public constant TIMELOCK_DURATION = 24 hours;
+function proposeSetAdmin(address newAdmin) external onlyAdmin;
+function executeAction(bytes32 actionId) external; // After 24h
+```
 
 ### Flow
 
@@ -147,15 +117,6 @@ splitter.claimAndSplitWETH();
 // → 10% WETH unwrapped to ETH, deposited to vault
 ```
 
-### Claim Calculation
-
-```solidity
-// Pro-rata from ACTUAL pool balance
-claimAmount = (holderBalance * ethBalances[token]) / snapshotSupply;
-```
-
-No theoretical multipliers in payouts — what's in the pool is what gets distributed.
-
 ---
 
 ## Integration Options
@@ -175,43 +136,38 @@ Add "Sunset Protection" checkbox at token deployment:
 3. Auto-register in SunsetRegistry
 4. Done — coverage starts immediately
 
-**Benefits**:
-- One checkbox, zero friction
-- Coverage from day one
-- "Sunset Protected" badge for trust
-
 ### Option B: Post-Launch via Bankr
 
-New Bankr commands:
+New Bankr commands (see [BANKR_INTEGRATION.md](./BANKR_INTEGRATION.md)):
 ```
-@bankrbot enable sunset              # Register for Standard tier
-@bankrbot enable sunset premium      # Register for Premium tier
-@bankrbot sunset status              # Check coverage amount
-@bankrbot sunset claim               # Claim after sunset (for holders)
+@bankrbot sunset register [tier]  # Register for coverage
+@bankrbot sunset status           # Check coverage amount
+@bankrbot sunset announce         # Announce sunset (owner)
+@bankrbot sunset claim            # Claim after sunset
 ```
 
-**Implementation**:
-1. Bankr deploys FeeSplitter for token
-2. Updates reward recipient
-3. Registers with SunsetRegistry
+### Option C: SDK Integration
 
-### Option C: Manual Integration
+```typescript
+import { SunsetSDK } from '@sunset-protocol/sdk';
 
-Projects can integrate directly:
-1. Deploy own FeeSplitter
-2. Register via registry contract
-3. Update reward recipient manually
+const sunset = new SunsetSDK(publicClient, 'base');
+
+// Check coverage
+const coverage = await sunset.getCoverage(tokenAddress);
+
+// Register (returns unsigned tx)
+const tx = await sunset.register(tokenAddress, 0); // Standard tier
+```
 
 ---
 
 ## Coverage Tiers
 
-| Tier | Fee Share | Multiplier* | Best For |
-|------|-----------|-------------|----------|
-| Standard | 10% | 1.2x | Most projects |
-| Premium | 15% | 1.5x | High-value projects |
-
-*Multiplier is for display/marketing only. Actual claims are pro-rata from pool.
+| Tier | Fee Share | Multiplier | Best For |
+|------|-----------|------------|----------|
+| **Standard** | 10% | 1.2x | Most projects |
+| **Premium** | 15% | 1.5x | High-value tokens |
 
 ---
 
@@ -226,17 +182,23 @@ GET /api/projects                   # All projects
 GET /api/score/[token]              # Health score (0-100)
 ```
 
-### MCP Server (for AI Agents)
+### TypeScript SDK
 
 ```bash
-npm install -g @sunset-protocol/mcp
+npm install @sunset-protocol/sdk
 ```
-
-Tools: `sunset_check_coverage`, `sunset_get_claimable`, `sunset_get_register_tx`, etc.
 
 ### Farcaster Frames
 
 Share `/token/[address]` — shows coverage status as embeddable frame.
+
+### Subgraph
+
+Fast queries via The Graph — indexes all events.
+
+### MCP Server
+
+AI agents can check and interact via MCP tools.
 
 ---
 
@@ -251,14 +213,6 @@ Share `/token/[address]` — shows coverage status as embeddable frame.
 
 If $AGENT sunsets, holders split $600 pro-rata based on holdings.
 
-### Protocol Sustainability
-
-| Metric | Conservative | Moderate |
-|--------|--------------|----------|
-| Covered tokens | 50 | 200 |
-| Avg monthly volume | $50k | $100k |
-| Monthly inflow | $2,500 | $20,000 |
-
 ---
 
 ## Roadmap
@@ -266,11 +220,12 @@ If $AGENT sunsets, holders split $600 pro-rata based on holdings.
 | Phase | Status | Deliverable |
 |-------|--------|-------------|
 | 1 | ✅ Done | Core contracts deployed (Sepolia) |
-| 2 | ✅ Done | REST API + Frontend |
-| 3 | ✅ Done | MCP server for agents |
-| 4 | 🔄 Now | Integration proposal (this doc) |
-| 5 | Next | Clanker/Bankr integration |
-| 6 | Future | Mainnet deployment |
+| 2 | ✅ Done | Security features (pause, timelock) |
+| 3 | ✅ Done | REST API + Frontend + Calculator |
+| 4 | ✅ Done | SDK + Subgraph + MCP server |
+| 5 | ✅ Done | Documentation + proposals |
+| 6 | 🔄 Now | Audit + mainnet deployment |
+| 7 | Next | Clanker/Bankr integration |
 
 ---
 
@@ -284,9 +239,9 @@ If $AGENT sunsets, holders split $600 pro-rata based on holdings.
 
 ## Contact
 
-- **Twitter**: [@Clawdia_ETH](https://twitter.com/Clawdia_ETH)
-- **GitHub**: [ClawdiaETH/sunset-protocol](https://github.com/ClawdiaETH/sunset-protocol)
-- **Contracts**: [Base Sepolia](https://sepolia.basescan.org/address/0x8d0Dc9E8A42743a0256fd40B70f463e4e0c587d9)
+- **Twitter:** [@Clawdia_ETH](https://twitter.com/Clawdia_ETH)
+- **GitHub:** [ClawdiaETH/sunset-protocol](https://github.com/ClawdiaETH/sunset-protocol)
+- **Website:** [sunsetprotocol.vercel.app](https://sunsetprotocol.vercel.app)
 
 ---
 
