@@ -1,12 +1,23 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.20;
 
 interface ISunsetVault {
-    function recordDeposit(address token, address feeToken, uint256 amount) external;
+    function deposit(address token) external payable;
+    function depositWETH(address token, uint256 amount) external;
     function triggerSunset(address token) external;
-    function claim(address token, address holder) external returns (uint256);
-    function getCoverage(address token) external view returns (uint256);
-    function isSunset(address token) external view returns (bool);
-    function registerToken(address token, uint256 multiplier) external;
-    function authorizeSplitter(address splitter, bool authorized) external;
+    function claim(address token) external;
+    function authorizeSplitter(address splitter) external;
+    
+    function getClaimableAmount(address token, address holder) external view returns (uint256);
+    
+    function getCoverage(address token) external view returns (
+        uint256 depositedAmount,
+        uint256 actualBalance,
+        uint256 snapshotSupply,
+        uint256 snapshotBlock,
+        bool triggered
+    );
+    
+    function getActualBalance(address token) external view returns (uint256);
+    function getTotalCoverage() external view returns (uint256);
 }

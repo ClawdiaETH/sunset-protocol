@@ -1,250 +1,234 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.20;
 
-import {IERC20} from "./interfaces/IERC20.sol";
-import {ISunsetVault} from "./interfaces/ISunsetVault.sol";
-import {FeeSplitter} from "./FeeSplitter.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-/// @title SunsetRegistry
-/// @notice Tracks covered projects and manages sunset triggers
-contract SunsetRegistry {
-    /*//////////////////////////////////////////////////////////////
-                                 ERRORS
-    //////////////////////////////////////////////////////////////*/
+interface ISunsetVault {
+    function triggerSunset(address token) external;
+    function getActualBalance(address token) external view returns (uint256);
+    function authorizeSplitter(address splitter) external;
+}
 
-    error ZeroAddress();
-    error AlreadyRegistered();
-    error NotRegistered();
-    error OnlyAdmin();
-    error OnlyProjectOwner();
-    error SunsetConditionsNotMet();
+interface IFeeSplitter {
+    function token() external view returns (address);
+}
 
-    /*//////////////////////////////////////////////////////////////
-                                 EVENTS
-    //////////////////////////////////////////////////////////////*/
+contract SunsetRegistry is Ownable {
+    // ============ Constants ============
+    uint256 public constant MIN_COVERAGE_PERIOD = 30 days;
+    uint256 public constant INACTIVITY_THRESHOLD = 120 days;
+    uint256 public constant MIN_MEANINGFUL_DEPOSIT = 0.001 ether; // ~$3 at current prices
 
+    // ============ Enums ============
+    enum Tier { Standard, Premium }
+
+    // ============ Structs ============
+    struct Project {
+        address owner;
+        address feeSplitter;
+        Tier tier;
+        bool active;
+        uint256 registeredAt;           // When project was registered
+        uint256 lastMeaningfulDeposit;  // Last deposit above threshold
+        uint256 totalDeposited;         // Track total deposits
+    }
+
+    // ============ State ============
+    address public vault;
+    address public admin;
+    mapping(address => Project) public projects;
+    address[] public registeredTokens;
+
+    // ============ Events ============
     event ProjectRegistered(
         address indexed token,
-        address indexed splitter,
         address indexed owner,
-        uint256 tier
+        address feeSplitter,
+        Tier tier
     );
-    event ProjectUnregistered(address indexed token);
-    event SunsetRequested(address indexed token, address indexed requester);
+    event SunsetRequested(
+        address indexed token,
+        address indexed triggeredBy,
+        string reason
+    );
+    event FeeDeposited(
+        address indexed token,
+        uint256 amount,
+        bool meaningful
+    );
 
-    /*//////////////////////////////////////////////////////////////
-                                 STRUCTS
-    //////////////////////////////////////////////////////////////*/
+    // ============ Errors ============
+    error NotRegistered();
+    error AlreadyRegistered();
+    error NotAuthorized();
+    error CoveragePeriodNotMet();
+    error StillActive();
+    error VaultNotSet();
+    error ZeroAddress();
 
-    struct Project {
-        address token;           // Token address
-        address splitter;        // FeeSplitter address
-        address owner;           // Project owner
-        uint256 tier;            // Coverage tier (1=Basic, 2=Standard, 3=Premium)
-        uint256 registeredAt;    // Registration timestamp
-        bool active;             // Is coverage active
+    // ============ Constructor ============
+    constructor(address _admin) Ownable(msg.sender) {
+        if (_admin == address(0)) revert ZeroAddress();
+        admin = _admin;
     }
 
-    /*//////////////////////////////////////////////////////////////
-                                 STATE
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Admin address
-    address public admin;
-    
-    /// @notice Sunset vault address
-    address public immutable vault;
-    
-    /// @notice Project data by token address
-    mapping(address => Project) public projects;
-    
-    /// @notice All registered token addresses
-    address[] public registeredTokens;
-    
-    /// @notice Coverage multipliers by tier (basis points)
-    mapping(uint256 => uint256) public tierMultipliers;
-    
-    /// @notice Fee share by tier (basis points)
-    mapping(uint256 => uint256) public tierFeeShare;
-
-    /// @notice Sunset condition: minimum 30-day volume (in ETH)
-    uint256 public minVolumeThreshold = 0.1 ether;
-    
-    /// @notice Sunset condition: days of inactivity
-    uint256 public inactivityDays = 90;
-
-    /*//////////////////////////////////////////////////////////////
-                              CONSTRUCTOR
-    //////////////////////////////////////////////////////////////*/
-
-    constructor(address _vault) {
+    // ============ Admin Functions ============
+    function setVault(address _vault) external onlyOwner {
         if (_vault == address(0)) revert ZeroAddress();
-        
-        admin = msg.sender;
         vault = _vault;
-        
-        // Set default tier multipliers
-        tierMultipliers[1] = 10000;  // Basic: 1x
-        tierMultipliers[2] = 15000;  // Standard: 1.5x
-        tierMultipliers[3] = 20000;  // Premium: 2x
-        
-        // Set default fee shares
-        tierFeeShare[1] = 500;   // Basic: 5%
-        tierFeeShare[2] = 1000;  // Standard: 10%
-        tierFeeShare[3] = 1500;  // Premium: 15%
     }
 
-    /*//////////////////////////////////////////////////////////////
-                           ADMIN FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    function setAdmin(address newAdmin) external {
-        if (msg.sender != admin) revert OnlyAdmin();
-        if (newAdmin == address(0)) revert ZeroAddress();
-        admin = newAdmin;
+    function setAdmin(address _admin) external onlyOwner {
+        if (_admin == address(0)) revert ZeroAddress();
+        admin = _admin;
     }
 
-    function setTierConfig(
-        uint256 tier,
-        uint256 multiplier,
-        uint256 feeShare
-    ) external {
-        if (msg.sender != admin) revert OnlyAdmin();
-        tierMultipliers[tier] = multiplier;
-        tierFeeShare[tier] = feeShare;
-    }
-
-    function setSunsetConditions(
-        uint256 _minVolume,
-        uint256 _inactivityDays
-    ) external {
-        if (msg.sender != admin) revert OnlyAdmin();
-        minVolumeThreshold = _minVolume;
-        inactivityDays = _inactivityDays;
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                         REGISTRATION FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Register a new project for coverage
-    /// @param token Token address to cover
-    /// @param tier Coverage tier (1, 2, or 3)
-    /// @return splitter Address of deployed FeeSplitter
+    // ============ Registration ============
     function register(
         address token,
-        uint256 tier
-    ) external returns (address splitter) {
-        if (token == address(0)) revert ZeroAddress();
-        if (projects[token].active) revert AlreadyRegistered();
-        if (tier == 0 || tier > 3) revert("invalid tier");
-        
-        // Deploy FeeSplitter for this project
-        splitter = address(new FeeSplitter(
-            msg.sender,
-            vault,
-            token,
-            tierFeeShare[tier]
-        ));
-        
-        // Authorize the splitter in vault (CRITICAL - must do before splitter can deposit)
-        ISunsetVault(vault).authorizeSplitter(splitter, true);
-        
-        // Register token in vault with coverage multiplier
-        ISunsetVault(vault).registerToken(token, tierMultipliers[tier]);
-        
-        // Store project data
+        address feeSplitter,
+        Tier tier
+    ) external {
+        if (projects[token].owner != address(0)) revert AlreadyRegistered();
+        if (vault == address(0)) revert VaultNotSet();
+
+        // Verify feeSplitter is for this token
+        require(
+            IFeeSplitter(feeSplitter).token() == token,
+            "Splitter token mismatch"
+        );
+
+        uint256 currentTime = block.timestamp;
+
         projects[token] = Project({
-            token: token,
-            splitter: splitter,
             owner: msg.sender,
+            feeSplitter: feeSplitter,
             tier: tier,
-            registeredAt: block.timestamp,
-            active: true
+            active: true,
+            registeredAt: currentTime,
+            lastMeaningfulDeposit: currentTime, // Start the clock
+            totalDeposited: 0
         });
-        
+
         registeredTokens.push(token);
-        
-        emit ProjectRegistered(token, splitter, msg.sender, tier);
+
+        // Authorize the splitter to deposit to vault
+        ISunsetVault(vault).authorizeSplitter(feeSplitter);
+
+        emit ProjectRegistered(token, msg.sender, feeSplitter, tier);
     }
 
-    /// @notice Unregister a project (owner only)
-    /// @param token Token to unregister
-    function unregister(address token) external {
+    // ============ Fee Tracking ============
+    /// @notice Called by vault when fees are deposited
+    /// @dev Only vault can call this
+    function recordDeposit(address token, uint256 amount) external {
+        require(msg.sender == vault, "Only vault");
+        
         Project storage project = projects[token];
         if (!project.active) revert NotRegistered();
-        if (msg.sender != project.owner && msg.sender != admin) {
-            revert OnlyProjectOwner();
+
+        project.totalDeposited += amount;
+
+        bool meaningful = amount >= MIN_MEANINGFUL_DEPOSIT;
+        if (meaningful) {
+            project.lastMeaningfulDeposit = block.timestamp;
         }
-        
-        project.active = false;
-        emit ProjectUnregistered(token);
+
+        emit FeeDeposited(token, amount, meaningful);
     }
 
-    /// @notice Request sunset for a project
-    /// @param token Token to sunset
-    /// @dev Anyone can call, but conditions must be met
+    // ============ Sunset Triggers ============
+    /// @notice Request sunset for a token
+    /// @dev Multiple trigger conditions supported
     function requestSunset(address token) external {
         Project storage project = projects[token];
         if (!project.active) revert NotRegistered();
-        
-        // Check sunset conditions
-        // In production, would check on-chain volume oracles
-        // For now, allow admin or owner to trigger
-        bool isAuthorized = msg.sender == admin || 
-                           msg.sender == project.owner;
-        
-        if (!isAuthorized) revert SunsetConditionsNotMet();
-        
-        // Trigger sunset in vault
+
+        string memory reason;
+
+        // Check authorization
+        if (msg.sender == admin) {
+            // Admin can always trigger (emergency)
+            reason = "admin_emergency";
+        } else if (msg.sender == project.owner) {
+            // Owner can trigger after minimum coverage period
+            if (block.timestamp < project.registeredAt + MIN_COVERAGE_PERIOD) {
+                revert CoveragePeriodNotMet();
+            }
+            reason = "owner_voluntary";
+        } else {
+            // Anyone can trigger if inactive for 120+ days
+            if (block.timestamp < project.lastMeaningfulDeposit + INACTIVITY_THRESHOLD) {
+                revert StillActive();
+            }
+            reason = "community_inactivity";
+        }
+
+        // Trigger the sunset
         ISunsetVault(vault).triggerSunset(token);
-        
         project.active = false;
-        emit SunsetRequested(token, msg.sender);
+
+        emit SunsetRequested(token, msg.sender, reason);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                            VIEW FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
+    // ============ View Functions ============
+    function getProject(address token) external view returns (
+        address owner,
+        address feeSplitter,
+        Tier tier,
+        bool active,
+        uint256 registeredAt,
+        uint256 lastMeaningfulDeposit,
+        uint256 totalDeposited
+    ) {
+        Project storage p = projects[token];
+        return (
+            p.owner,
+            p.feeSplitter,
+            p.tier,
+            p.active,
+            p.registeredAt,
+            p.lastMeaningfulDeposit,
+            p.totalDeposited
+        );
+    }
 
-    /// @notice Get all registered tokens
+    function canOwnerTrigger(address token) external view returns (bool, uint256) {
+        Project storage p = projects[token];
+        if (!p.active) return (false, 0);
+        
+        uint256 unlockTime = p.registeredAt + MIN_COVERAGE_PERIOD;
+        if (block.timestamp >= unlockTime) {
+            return (true, 0);
+        }
+        return (false, unlockTime - block.timestamp);
+    }
+
+    function canCommunityTrigger(address token) external view returns (bool, uint256) {
+        Project storage p = projects[token];
+        if (!p.active) return (false, 0);
+        
+        uint256 unlockTime = p.lastMeaningfulDeposit + INACTIVITY_THRESHOLD;
+        if (block.timestamp >= unlockTime) {
+            return (true, 0);
+        }
+        return (false, unlockTime - block.timestamp);
+    }
+
     function getRegisteredTokens() external view returns (address[] memory) {
         return registeredTokens;
     }
 
-    /// @notice Get total project count (for frontend)
     function getProjectCount() external view returns (uint256) {
         return registeredTokens.length;
     }
 
-    /// @notice Get active project count
-    function getActiveProjectCount() external view returns (uint256 count) {
-        for (uint256 i = 0; i < registeredTokens.length; i++) {
-            if (projects[registeredTokens[i]].active) {
-                count++;
-            }
-        }
+    function isRegistered(address token) external view returns (bool) {
+        return projects[token].owner != address(0);
     }
 
-    /// @notice Get project details
-    function getProject(address token) external view returns (
-        address splitter,
-        address owner,
-        uint256 tier,
-        uint256 registeredAt,
-        bool active
-    ) {
-        Project storage p = projects[token];
-        return (p.splitter, p.owner, p.tier, p.registeredAt, p.active);
-    }
-
-    /// @notice Calculate expected fee share for a tier
-    function getFeeShare(uint256 tier) external view returns (uint256) {
-        return tierFeeShare[tier];
-    }
-
-    /// @notice Calculate coverage multiplier for a tier
-    function getMultiplier(uint256 tier) external view returns (uint256) {
-        return tierMultipliers[tier];
+    function isActive(address token) external view returns (bool) {
+        return projects[token].active;
     }
 }
