@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import CoverageCalculator from './components/CoverageCalculator'
+import { RegistrationPrice } from './components/RegistrationPrice'
 
 export default function Home() {
   return (
@@ -244,7 +245,10 @@ export default function Home() {
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold mb-4">Coverage tiers</h2>
-            <p className="text-zinc-400 text-lg">One-time 25M $CLAWDIA charge for registration (~$0.10 ETH)</p>
+            <p className="text-zinc-400 text-lg">
+              One-time 25M $CLAWDIA charge for registration{' '}
+              <RegistrationPrice className="text-zinc-300" />
+            </p>
           </div>
           
           <div className="grid md:grid-cols-2 gap-8">
