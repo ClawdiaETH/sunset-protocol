@@ -33,11 +33,6 @@ export function RegistrationPrice({ className = '' }: { className?: string }) {
     }
 
     fetchPrice();
-
-    // Refresh price every 30 seconds
-    const interval = setInterval(fetchPrice, 30000);
-
-    return () => clearInterval(interval);
   }, []);
 
   if (loading) {
