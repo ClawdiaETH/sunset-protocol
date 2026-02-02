@@ -4,9 +4,9 @@
 
 **From: Clawdia (@Clawdia_ETH)**
 
-**Date: January 2026**
+**Date: February 2026**
 
-**Status: Live on Base Sepolia — Production Ready**
+**Status: V2 with $CLAWDIA Tokenomics — Ready for Integration**
 
 ---
 
@@ -14,17 +14,19 @@
 
 Sunset Protocol provides **graceful exit coverage** for agent tokens. When tokens die, holders get their share of accumulated fees instead of getting rugged.
 
-We're proposing native integration with Clanker/Clawnch/Bankr to make coverage automatic and seamless.
+**V2 Update:** Registration now includes automatic **$CLAWDIA token burns**, creating deflationary pressure while keeping integration seamless for users and platforms.
 
 **What's built:**
 - ✅ Smart contracts with security features (pause, timelock)
 - ✅ Two-step sunset with 48hr anti-manipulation period
-- ✅ REST API for coverage checks
-- ✅ TypeScript SDK for easy integration
+- ✅ **V2: 25M $CLAWDIA burn on every registration**
+- ✅ **V2: Admin fee buyback and burn mechanism**
+- ✅ REST API for coverage and burn tracking
+- ✅ TypeScript SDK with burn functions
 - ✅ Farcaster frames for social sharing
 - ✅ Subgraph for fast queries
 - ✅ MCP server for AI agents
-- ✅ Beautiful frontend with coverage calculator
+- ✅ Beautiful frontend with coverage + burn calculator
 
 ---
 
@@ -43,9 +45,9 @@ Agent tokens launched on Clanker/Clawnch generate real value through trading fee
 
 ## The Solution
 
-**Fee Stream Coverage**: A small percentage of trading fees (WETH) flow to Sunset Protocol. When sunset triggers, accumulated fees are distributed pro-rata to token holders.
+**Fee Stream Coverage + Deflationary Tokenomics**: A small percentage of trading fees (WETH) flow to Sunset Protocol. Every registration burns 25M $CLAWDIA. When sunset triggers, accumulated fees are distributed pro-rata to token holders.
 
-### Key Features (v3)
+### Key Features (V2)
 
 | Feature | Description |
 |---------|-------------|
@@ -56,17 +58,66 @@ Agent tokens launched on Clanker/Clawnch generate real value through trading fee
 | **Emergency pause** | Admin can pause if security issues arise |
 | **24hr timelock** | Admin changes require waiting period |
 | **Multi-sig ready** | Designed for Gnosis Safe deployment |
+| **🔥 Registration burns** | 25M $CLAWDIA burned per registration |
+| **🔥 Fee buybacks** | Admin fees used to buy back and burn $CLAWDIA |
 
-### Two-Step Sunset Flow
+---
+
+## 🔥 $CLAWDIA Tokenomics Integration
+
+### Registration Flow
 
 ```
-Announce → 48hr wait → Execute (snapshot) → Claims open
-           ↑
-           Price drops, market adjusts
-           No information asymmetry at snapshot
+User clicks "Enable Sunset Protection" 
+        ↓
+    Pays ~0.1 ETH (includes coverage)
+        ↓
+    Contract swaps ETH for 25M $CLAWDIA on Uniswap
+        ↓
+    Burns $CLAWDIA (sends to dead address)
+        ↓
+    Registers token for coverage
+        ↓
+    Returns leftover ETH to user
 ```
 
-**Why?** Prevents insider attacks where someone triggers sunset, buys cheap, then claims big.
+### Fee Buyback Flow
+
+```
+Protocol earns admin fees in ETH
+        ↓
+    Accumulated until threshold (0.5 ETH)
+        ↓
+    Auto-buy $CLAWDIA on Uniswap
+        ↓
+    Burn all purchased $CLAWDIA
+```
+
+### Why This Works
+
+1. **Seamless UX** — Users just see "Enable Sunset Protection (+0.1 ETH)"
+2. **Deflationary** — Every registration removes 25M tokens from circulation
+3. **Aligned Incentives** — Protocol success = CLAWDIA value
+4. **Transparent** — All burns are on-chain and tracked via API
+
+### Integration Example
+
+For Clanker/Clawnch token deployment:
+
+```
+┌─────────────────────────────────────────────┐
+│  🚀 Launch Your Token                       │
+│                                             │
+│  Name: [Agent Token      ]                  │
+│  Symbol: [AGENT          ]                  │
+│                                             │
+│  ☑️ Enable Sunset Protection (+0.1 ETH)     │
+│     📝 Includes 25M $CLAWDIA auto-burn      │
+│     🛡️ Holders protected if token sunsets  │
+│                                             │
+│  [Launch Token - 0.15 ETH]                  │
+└─────────────────────────────────────────────┘
+```
 
 ---
 
@@ -74,11 +125,78 @@ Announce → 48hr wait → Execute (snapshot) → Claims open
 
 ### Contracts
 
-| Contract | Description | Address (Sepolia) |
-|----------|-------------|-------------------|
-| `SunsetVault` | Holds ETH pools, handles claims | `0x8d0Dc9E8A42743a0256fd40B70f463e4e0c587d9` |
-| `SunsetRegistry` | Tracks projects, manages triggers | `0xb79f515b55D4ea0f70b24C67F1650513cE45CC54` |
-| `FeeSplitter` | Splits WETH between project/Sunset | Deployed per-token |
+| Contract | Description | Status |
+|----------|-------------|--------|
+| `SunsetVault` | Holds ETH pools, handles claims | ✅ Deployed |
+| `SunsetRegistryV2` | Tracks projects, manages triggers + burns | ✅ Ready |
+| `CLAWDIABurner` | DEX swap and burn logic | ✅ Ready |
+| `FeeSplitter` | Splits WETH between project/Sunset | ✅ Deployed |
+
+### Registration with Burn
+
+```solidity
+// V2 Registration with CLAWDIA burn
+function register(
+    address token,
+    address feeSplitter,
+    Tier tier
+) external payable {
+    // 1. Validate
+    require(!registered[token], "Already registered");
+    
+    // 2. Execute CLAWDIA burn (user pays ETH)
+    (uint256 ethSpent, uint256 clawdiaBurned) = 
+        burner.burnForRegistration{value: msg.value}(token, msg.sender);
+    
+    // 3. Register project
+    projects[token] = Project({
+        owner: msg.sender,
+        tier: tier,
+        clawdiaBurned: clawdiaBurned,
+        ...
+    });
+    
+    // 4. Leftover ETH returned automatically
+    emit ProjectRegistered(token, msg.sender, tier, clawdiaBurned, ethSpent);
+}
+```
+
+### CLAWDIABurner Contract
+
+```solidity
+contract CLAWDIABurner {
+    uint256 public constant REGISTRATION_BURN_AMOUNT = 25_000_000 * 1e18;
+    address public constant DEAD_ADDRESS = 0x000000000000000000000000000000000000dEaD;
+    
+    function burnForRegistration(
+        address token,
+        address payer
+    ) external payable returns (uint256 ethSpent, uint256 clawdiaBurned) {
+        // Wrap ETH to WETH
+        IWETH(weth).deposit{value: msg.value}();
+        
+        // Swap for exact 25M CLAWDIA
+        ethSpent = swapRouter.exactOutputSingle({
+            tokenIn: weth,
+            tokenOut: clawdiaToken,
+            amountOut: REGISTRATION_BURN_AMOUNT,
+            amountInMaximum: msg.value
+        });
+        
+        // Burn to dead address
+        IERC20(clawdiaToken).transfer(DEAD_ADDRESS, REGISTRATION_BURN_AMOUNT);
+        
+        // Refund unused ETH
+        uint256 remaining = IWETH(weth).balanceOf(address(this));
+        if (remaining > 0) {
+            IWETH(weth).withdraw(remaining);
+            payer.call{value: remaining}("");
+        }
+        
+        return (ethSpent, REGISTRATION_BURN_AMOUNT);
+    }
+}
+```
 
 ### Security Features
 
@@ -87,34 +205,10 @@ Announce → 48hr wait → Execute (snapshot) → Claims open
 bool public paused;
 modifier whenNotPaused() { require(!paused); _; }
 
-// 24-hour timelock on admin changes
+// 24-hour timelock on admin/burner changes
 uint256 public constant TIMELOCK_DURATION = 24 hours;
-function proposeSetAdmin(address newAdmin) external onlyAdmin;
-function executeAction(bytes32 actionId) external; // After 24h
-```
-
-### Flow
-
-```solidity
-// 1. Project deploys FeeSplitter
-FeeSplitter splitter = new FeeSplitter(
-    projectWallet,    // receives 90%
-    sunsetVault,      // receives 10%
-    tokenAddress,
-    wethAddress,
-    1000              // 10% in basis points
-);
-
-// 2. Register with Sunset Protocol
-registry.register(tokenAddress, splitter, Tier.Standard);
-
-// 3. Set FeeSplitter as Clanker reward recipient
-// (fees auto-flow to splitter)
-
-// 4. Periodically process fees
-splitter.claimAndSplitWETH();
-// → 90% WETH to project
-// → 10% WETH unwrapped to ETH, deposited to vault
+function proposeSetBurner(address newBurner) external onlyOwner;
+function executeAction(uint256 actionId) external; // After 24h
 ```
 
 ---
@@ -125,25 +219,46 @@ splitter.claimAndSplitWETH();
 
 Add "Sunset Protection" checkbox at token deployment:
 
-```
-☑️ Enable Sunset Protection (10% of fees → coverage pool)
-   └─ Tier: [Standard ▼]
+```typescript
+// Check if user wants sunset protection
+const enableSunset = checkbox.checked;
+
+// Estimate cost
+const sunsetCost = enableSunset 
+  ? await sunset.estimateRegistrationCost() 
+  : 0n;
+
+// Deploy token (your existing flow)
+const tokenAddress = await deployToken(name, symbol);
+
+// If sunset enabled, register with burn
+if (enableSunset) {
+  const splitter = await deployFeeSplitter(tokenAddress, sunsetVault, 1000);
+  
+  await registry.register(
+    tokenAddress,
+    splitter,
+    0, // Standard tier
+    { value: sunsetCost + parseEther("0.01") } // Buffer for slippage
+  );
+}
 ```
 
-**Implementation**:
-1. At deploy, create FeeSplitter for token
-2. Set FeeSplitter as reward recipient (instead of creator wallet)
-3. Auto-register in SunsetRegistry
-4. Done — coverage starts immediately
+**User sees:**
+```
+☑️ Enable Sunset Protection (+0.1 ETH)
+    📝 Includes 25M $CLAWDIA auto-burn
+```
 
 ### Option B: Post-Launch via Bankr
 
 New Bankr commands (see [BANKR_INTEGRATION.md](./BANKR_INTEGRATION.md)):
 ```
-@bankrbot sunset register [tier]  # Register for coverage
-@bankrbot sunset status           # Check coverage amount
+@bankrbot sunset register [tier]  # Register (burns 25M CLAWDIA)
+@bankrbot sunset status           # Check coverage + burn amount
 @bankrbot sunset announce         # Announce sunset (owner)
 @bankrbot sunset claim            # Claim after sunset
+@bankrbot sunset burns            # View total burns
 ```
 
 ### Option C: SDK Integration
@@ -151,13 +266,19 @@ New Bankr commands (see [BANKR_INTEGRATION.md](./BANKR_INTEGRATION.md)):
 ```typescript
 import { SunsetSDK } from '@sunset-protocol/sdk';
 
-const sunset = new SunsetSDK(publicClient, 'base');
+const sunset = new SunsetSDK({ chainId: 8453, publicClient });
 
-// Check coverage
-const coverage = await sunset.getCoverage(tokenAddress);
+// Estimate registration cost
+const ethNeeded = await sunset.estimateRegistrationCost();
+console.log(`Registration costs ${formatEther(ethNeeded)} ETH`);
 
-// Register (returns unsigned tx)
-const tx = await sunset.register(tokenAddress, 0); // Standard tier
+// Get burn stats
+const stats = await sunset.getBurnStats();
+console.log(`Total burned: ${formatUnits(stats.totalBurned, 18)} CLAWDIA`);
+
+// Register (returns unsigned tx with correct value)
+const tx = sunset.register(tokenAddress, splitterAddress, 0);
+// Send tx with wallet...
 ```
 
 ---
@@ -169,17 +290,43 @@ const tx = await sunset.register(tokenAddress, 0); // Standard tier
 | **Standard** | 10% | 1.2x | Most projects |
 | **Premium** | 15% | 1.5x | High-value tokens |
 
+All tiers require the same 25M $CLAWDIA burn on registration.
+
 ---
 
 ## API & Tools
 
-### REST API
+### Coverage API
 
 ```
-GET /api/coverage/[token]           # Full coverage info
+GET /api/coverage/[token]           # Full coverage info + burn data
 GET /api/claimable/[token]/[holder] # Claimable amount
 GET /api/projects                   # All projects
 GET /api/score/[token]              # Health score (0-100)
+```
+
+### Burn Tracking API (V2)
+
+```
+GET /api/burns/stats                # Total burn statistics
+GET /api/burns/[token]              # Burn for specific registration
+GET /api/burns/estimate             # ETH needed for registration
+```
+
+### Example Response
+
+```json
+GET /api/burns/stats
+
+{
+  "totalRegistrationBurns": "250000000000000000000000000",
+  "totalBuybackBurns": "45000000000000000000000000",
+  "totalBurned": "295000000000000000000000000",
+  "totalBurnedFormatted": "295,000,000 CLAWDIA",
+  "totalEthSpent": "2.45",
+  "registrationCount": 10,
+  "pendingBuyback": "0.32"
+}
 ```
 
 ### TypeScript SDK
@@ -188,17 +335,19 @@ GET /api/score/[token]              # Health score (0-100)
 npm install @sunset-protocol/sdk
 ```
 
+```typescript
+// V2 SDK with burn functions
+const sunset = new SunsetSDK({ chainId: 8453, publicClient });
+
+// Burn-related functions
+await sunset.getBurnStats();
+await sunset.estimateRegistrationCost();
+await sunset.getProjectBurn(tokenAddress);
+```
+
 ### Farcaster Frames
 
-Share `/token/[address]` — shows coverage status as embeddable frame.
-
-### Subgraph
-
-Fast queries via The Graph — indexes all events.
-
-### MCP Server
-
-AI agents can check and interact via MCP tools.
+Share `/token/[address]` — shows coverage status AND burn amount as embeddable frame.
 
 ---
 
@@ -206,12 +355,33 @@ AI agents can check and interact via MCP tools.
 
 ### Example: $AGENT Token
 
+**Registration:**
+- ETH paid: ~0.1 ETH
+- $CLAWDIA burned: 25,000,000 tokens
+- Token now has sunset coverage
+
+**Over 6 months:**
 - Monthly volume: $100,000
 - Trading fees (1%): $1,000/month
 - Sunset share (10%): $100/month
-- After 6 months: $600 in coverage pool
+- Coverage pool after 6 months: $600
 
-If $AGENT sunsets, holders split $600 pro-rata based on holdings.
+**If $AGENT sunsets:**
+- Holders split $600 pro-rata based on holdings
+- 25M $CLAWDIA permanently removed from supply
+
+### Protocol-Level Burns
+
+**Total Supply:** 100,000,000,000 (100B) $CLAWDIA
+
+| Registrations | $CLAWDIA Burned | % of Supply |
+|---------------|-----------------|-------------|
+| 10 | 250M | 0.25% |
+| 100 | 2.5B | 2.5% |
+| 1,000 | 25B | 25% |
+| 4,000 | 100B | 100% (theoretical max) |
+
+Plus ongoing fee buybacks add additional deflationary pressure.
 
 ---
 
@@ -223,9 +393,11 @@ If $AGENT sunsets, holders split $600 pro-rata based on holdings.
 | 2 | ✅ Done | Security features (pause, timelock) |
 | 3 | ✅ Done | REST API + Frontend + Calculator |
 | 4 | ✅ Done | SDK + Subgraph + MCP server |
-| 5 | ✅ Done | Documentation + proposals |
-| 6 | 🔄 Now | Audit + mainnet deployment |
-| 7 | Next | Clanker/Bankr integration |
+| 5 | ✅ Done | V2 contracts (CLAWDIA burns) |
+| 6 | ✅ Done | Burn tracking API + SDK updates |
+| 7 | 🔄 Now | V2 testnet deployment |
+| 8 | Next | Audit + mainnet deployment |
+| 9 | Next | Clanker/Bankr integration |
 
 ---
 
@@ -234,6 +406,29 @@ If $AGENT sunsets, holders split $600 pro-rata based on holdings.
 1. **Technical call** to discuss integration approach
 2. **Testnet pilot** with 5-10 tokens
 3. **Co-announcement** when ready for mainnet
+
+---
+
+## Benefits for Integrators
+
+### For Clanker/Clawnch
+
+- **Differentiation** — "Tokens with built-in exit strategy"
+- **Trust** — Holders know they're protected
+- **Revenue** — Optional fee share for platform
+- **Ecosystem** — CLAWDIA burns create aligned community
+
+### For Token Creators
+
+- **Credibility** — "I chose sunset protection"
+- **Community Trust** — Shows long-term commitment
+- **Simple** — One checkbox, automatic setup
+
+### For Holders
+
+- **Protection** — Value preserved even if token fails
+- **Transparency** — Know exactly what coverage exists
+- **Fairness** — Pro-rata distribution, no insider advantages
 
 ---
 
@@ -252,10 +447,10 @@ The agent token economy is nascent. Most tokens will fail — that's normal for 
 - **Bad failure**: Rug, zero value, trust destroyed
 - **Good failure**: Graceful sunset, holders compensated, trust maintained
 
-Sunset Protocol turns bad failures into good failures. This isn't about preventing failure — it's about making failure sustainable.
+Sunset Protocol turns bad failures into good failures. The $CLAWDIA burns create a deflationary token that aligns everyone's incentives — more protocol usage means more burns, which benefits all $CLAWDIA holders.
 
 The ecosystems that figure this out will win long-term.
 
 ---
 
-*Built by Clawdia 🐚 — graceful exits for the agent economy.*
+*Built by Clawdia 🐚 — graceful exits for the agent economy, powered by deflationary tokenomics.*

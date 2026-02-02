@@ -1,19 +1,27 @@
 import {
   type Address,
   type PublicClient,
-  type WalletClient,
   encodeFunctionData,
-  getContract,
-  zeroAddress,
+  parseEther,
 } from "viem";
 
 import { SunsetRegistryABI } from "./abis/SunsetRegistry";
 import { SunsetVaultABI } from "./abis/SunsetVault";
-import { getAddresses, isDeployed, type ChainId } from "./addresses";
+import { CLAWDIABurnerABI } from "./abis/CLAWDIABurner";
+import { 
+  getAddresses, 
+  isDeployed, 
+  isV2Deployed,
+  REGISTRATION_BURN_AMOUNT,
+  type ChainId 
+} from "./addresses";
 import type {
+  BurnStats,
   CoverageInfo,
   HealthScore,
+  ProjectBurnInfo,
   ProjectInfo,
+  RegistrationCostEstimate,
   SunsetStatus,
   Tier,
   UnsignedTransaction,
@@ -28,6 +36,8 @@ export interface SunsetSDKOptions {
   registryAddress?: Address;
   /** Optional custom vault address */
   vaultAddress?: Address;
+  /** Optional custom burner address (V2) */
+  burnerAddress?: Address;
 }
 
 export class SunsetSDK {
@@ -35,9 +45,10 @@ export class SunsetSDK {
   private readonly publicClient: PublicClient;
   private readonly registryAddress: Address;
   private readonly vaultAddress: Address;
+  private readonly burnerAddress?: Address;
 
   constructor(options: SunsetSDKOptions) {
-    const { chainId, publicClient, registryAddress, vaultAddress } = options;
+    const { chainId, publicClient, registryAddress, vaultAddress, burnerAddress } = options;
 
     this.chainId = chainId;
     this.publicClient = publicClient;
@@ -47,6 +58,7 @@ export class SunsetSDK {
 
     this.registryAddress = registryAddress ?? addresses.registry;
     this.vaultAddress = vaultAddress ?? addresses.vault;
+    this.burnerAddress = burnerAddress ?? addresses.burner;
 
     // Warn if using placeholder addresses
     if (!isDeployed(chainId) && !registryAddress && !vaultAddress) {
@@ -128,6 +140,7 @@ export class SunsetSDK {
       args: [token],
     });
 
+    // V1 returns 7 values, V2 returns 8 (with clawdiaBurned)
     const [owner, feeSplitter, tier, active, registeredAt, lastMeaningfulDeposit, totalDeposited] =
       result;
 
@@ -139,6 +152,8 @@ export class SunsetSDK {
       registeredAt,
       lastMeaningfulDeposit,
       totalDeposited,
+      // V2: Try to get clawdiaBurned if available
+      clawdiaBurned: (result as any)[7] ?? 0n,
     };
   }
 
@@ -181,12 +196,10 @@ export class SunsetSDK {
     // Constants from contracts
     const MIN_COVERAGE_PERIOD = 30n * 24n * 60n * 60n; // 30 days
     const INACTIVITY_THRESHOLD = 120n * 24n * 60n * 60n; // 120 days
-    const MIN_MEANINGFUL_DEPOSIT = BigInt(1e15); // 0.001 ETH
 
     const now = BigInt(Math.floor(Date.now() / 1000));
 
     // Factor 1: Coverage ratio (0-40 points)
-    // More ETH in the pool = higher score
     let coverageRatio = 0;
     if (project.totalDeposited > 0n) {
       const ratio = Number(coverage.actualBalance) / Number(project.totalDeposited);
@@ -194,7 +207,6 @@ export class SunsetSDK {
     }
 
     // Factor 2: Activity score (0-40 points)
-    // Based on time since last meaningful deposit
     let activityScore = 40;
     const timeSinceDeposit = now - project.lastMeaningfulDeposit;
     if (timeSinceDeposit > INACTIVITY_THRESHOLD) {
@@ -206,7 +218,6 @@ export class SunsetSDK {
     }
 
     // Factor 3: Time score (0-20 points)
-    // How long the project has been registered
     let timeScore = 0;
     const timeRegistered = now - project.registeredAt;
     if (timeRegistered >= MIN_COVERAGE_PERIOD) {
@@ -301,13 +312,150 @@ export class SunsetSDK {
   }
 
   // ============================================
+  // V2: BURN-RELATED READ METHODS
+  // ============================================
+
+  /**
+   * Get total burn statistics
+   * @returns Burn statistics including registration and buyback burns
+   */
+  async getBurnStats(): Promise<BurnStats> {
+    if (!this.burnerAddress || this.burnerAddress === "0x0000000000000000000000000000000000000000") {
+      // Return zeros if burner not deployed
+      return {
+        totalRegistrationBurns: 0n,
+        totalBuybackBurns: 0n,
+        totalBurned: 0n,
+        totalEthSpent: 0n,
+        pendingBuyback: 0n,
+      };
+    }
+
+    const result = await this.publicClient.readContract({
+      address: this.burnerAddress,
+      abi: CLAWDIABurnerABI,
+      functionName: "getBurnStats",
+    });
+
+    const [totalRegistrationBurns, totalBuybackBurns, totalBurned, totalEthSpent] = result;
+
+    // Get pending buyback from registry (if V2)
+    let pendingBuyback = 0n;
+    try {
+      pendingBuyback = await this.publicClient.readContract({
+        address: this.registryAddress,
+        abi: [
+          {
+            inputs: [],
+            name: "accumulatedAdminFees",
+            outputs: [{ name: "", type: "uint256" }],
+            stateMutability: "view",
+            type: "function",
+          },
+        ],
+        functionName: "accumulatedAdminFees",
+      });
+    } catch {
+      // V1 registry doesn't have this
+    }
+
+    return {
+      totalRegistrationBurns,
+      totalBuybackBurns,
+      totalBurned,
+      totalEthSpent,
+      pendingBuyback,
+    };
+  }
+
+  /**
+   * Estimate ETH cost for registration
+   * @returns Registration cost estimate with buffer recommendation
+   */
+  async estimateRegistrationCost(): Promise<RegistrationCostEstimate> {
+    if (!this.burnerAddress || this.burnerAddress === "0x0000000000000000000000000000000000000000") {
+      // Return default estimate if burner not deployed
+      const defaultEstimate = parseEther("0.1");
+      const buffer = defaultEstimate / 10n; // 10% buffer
+      
+      return {
+        estimatedEthNeeded: defaultEstimate,
+        burnAmount: REGISTRATION_BURN_AMOUNT,
+        recommendedBuffer: buffer,
+        recommendedValue: defaultEstimate + buffer,
+      };
+    }
+
+    const estimatedEthNeeded = await this.publicClient.readContract({
+      address: this.burnerAddress,
+      abi: CLAWDIABurnerABI,
+      functionName: "estimateRegistrationCost",
+    });
+
+    const buffer = estimatedEthNeeded / 10n; // 10% buffer
+
+    return {
+      estimatedEthNeeded,
+      burnAmount: REGISTRATION_BURN_AMOUNT,
+      recommendedBuffer: buffer,
+      recommendedValue: estimatedEthNeeded + buffer,
+    };
+  }
+
+  /**
+   * Get burn info for a specific project registration
+   * @param token Token address to check
+   */
+  async getProjectBurn(token: Address): Promise<ProjectBurnInfo> {
+    const project = await this.getProject(token);
+    
+    // Get ETH spent from burner if available
+    let ethSpent = 0n;
+    if (this.burnerAddress && this.burnerAddress !== "0x0000000000000000000000000000000000000000") {
+      try {
+        ethSpent = await this.publicClient.readContract({
+          address: this.burnerAddress,
+          abi: CLAWDIABurnerABI,
+          functionName: "registrationBurnAmount",
+          args: [token],
+        });
+      } catch {
+        // Function might not exist or revert
+      }
+    }
+
+    return {
+      token,
+      clawdiaBurned: project.clawdiaBurned ?? 0n,
+      ethSpent,
+      registeredAt: project.registeredAt,
+    };
+  }
+
+  /**
+   * Get the registration burn amount (constant)
+   */
+  getRegistrationBurnAmount(): bigint {
+    return REGISTRATION_BURN_AMOUNT;
+  }
+
+  // ============================================
   // WRITE METHODS (return unsigned transactions)
   // ============================================
 
   /**
    * Create unsigned transaction to register a token
+   * @param token Token address to register
+   * @param feeSplitter FeeSplitter contract address
+   * @param tier Coverage tier (0 = Standard, 1 = Premium)
+   * @param includeValue If true, includes estimated ETH value for burn (default: true)
    */
-  register(token: Address, feeSplitter: Address, tier: Tier): UnsignedTransaction {
+  register(
+    token: Address, 
+    feeSplitter: Address, 
+    tier: Tier,
+    includeValue: boolean = true
+  ): UnsignedTransaction {
     const data = encodeFunctionData({
       abi: SunsetRegistryABI,
       functionName: "register",
@@ -318,6 +466,9 @@ export class SunsetSDK {
       to: this.registryAddress,
       data,
       chainId: this.chainId,
+      // Include estimated value for V2 registration with burn
+      // Caller should use estimateRegistrationCost() for accurate value
+      value: includeValue ? parseEther("0.11") : undefined, // Default estimate with buffer
     };
   }
 
@@ -390,6 +541,32 @@ export class SunsetSDK {
   }
 
   // ============================================
+  // V2: BURN-RELATED WRITE METHODS
+  // ============================================
+
+  /**
+   * Create unsigned transaction for manual buyback and burn
+   * @param ethAmount Amount of ETH to use for buyback
+   */
+  buybackAndBurn(ethAmount: bigint): UnsignedTransaction {
+    if (!this.burnerAddress || this.burnerAddress === "0x0000000000000000000000000000000000000000") {
+      throw new Error("CLAWDIA burner not deployed on this chain");
+    }
+
+    const data = encodeFunctionData({
+      abi: CLAWDIABurnerABI,
+      functionName: "buybackAndBurn",
+    });
+
+    return {
+      to: this.burnerAddress,
+      data,
+      chainId: this.chainId,
+      value: ethAmount,
+    };
+  }
+
+  // ============================================
   // UTILITY METHODS
   // ============================================
 
@@ -408,9 +585,24 @@ export class SunsetSDK {
   }
 
   /**
+   * Get the burner contract address (V2)
+   */
+  getBurnerAddress(): Address | undefined {
+    return this.burnerAddress;
+  }
+
+  /**
    * Get the chain ID
    */
   getChainId(): ChainId {
     return this.chainId;
+  }
+
+  /**
+   * Check if V2 (with burns) is deployed on this chain
+   */
+  isV2(): boolean {
+    return this.burnerAddress !== undefined && 
+           this.burnerAddress !== "0x0000000000000000000000000000000000000000";
   }
 }

@@ -17,6 +17,7 @@ export default function Home() {
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-8 animate-fade-in-up">
             <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
             <span className="text-sm text-zinc-300">Live on Base</span>
+            <span className="text-orange-400 ml-2">🔥 Burns $CLAWDIA</span>
           </div>
 
           {/* Main heading */}
@@ -30,7 +31,7 @@ export default function Home() {
           <p className="text-xl md:text-2xl text-zinc-400 mb-10 max-w-2xl mx-auto animate-fade-in-up delay-200">
             When tokens die, holders get value back.
             <br className="hidden md:block" />
-            <span className="text-zinc-300">Not zero. Something.</span>
+            <span className="text-zinc-300">Powered by $CLAWDIA utility burns.</span>
           </p>
 
           {/* CTA buttons */}
@@ -54,9 +55,25 @@ export default function Home() {
               Bankr ready
             </span>
             <span className="flex items-center gap-2">
-              <span className="text-green-400">✓</span>
-              Clawnch native
+              <span className="text-orange-400">🔥</span>
+              Deflationary burns
             </span>
+          </div>
+        </div>
+      </section>
+
+      {/* Burn Stats Section */}
+      <section className="py-16 px-4 border-t border-white/5 bg-gradient-to-r from-orange-500/5 to-transparent">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold mb-2">🔥 $CLAWDIA Utility Burns</h2>
+            <p className="text-zinc-400">Every registration creates demand • 100B total supply</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <BurnStatCard value="25M" label="Per registration (0.025%)" icon="🎫" />
+            <BurnStatCard value="—" label="Total burned" icon="🔥" />
+            <BurnStatCard value="100B" label="Total supply" icon="📊" />
+            <BurnStatCard value="~0.1" label="ETH cost" icon="⛽" />
           </div>
         </div>
       </section>
@@ -84,8 +101,8 @@ export default function Home() {
             <StepCard
               number={1}
               title="Register"
-              description="Deploy a FeeSplitter that routes a percentage of trading fees to your coverage pool"
-              icon="📝"
+              description="Pay ~0.1 ETH to register. Contract auto-buys 25M $CLAWDIA and burns it. Your token gets coverage."
+              icon="🔥"
             />
             <StepCard
               number={2}
@@ -103,7 +120,47 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Flow Diagram */}
+      {/* Integration Flow */}
+      <section className="py-20 px-4 border-t border-white/5">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold mb-4">Seamless integration</h2>
+            <p className="text-zinc-400 text-lg">Just a checkbox for token launchers</p>
+          </div>
+          
+          <div className="glass rounded-2xl p-8 md:p-12">
+            <div className="bg-zinc-900/50 rounded-xl p-6 border border-zinc-800">
+              <div className="space-y-4">
+                <div className="text-zinc-400 text-sm">🚀 Launch Your Token</div>
+                <div className="h-10 bg-zinc-800/50 rounded-lg w-full" />
+                <div className="h-10 bg-zinc-800/50 rounded-lg w-3/4" />
+                <div className="mt-6 p-4 rounded-lg bg-orange-500/10 border border-orange-500/30">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input type="checkbox" checked readOnly className="mt-1 accent-orange-500" />
+                    <div>
+                      <div className="font-medium text-white">Enable Sunset Protection (+0.1 ETH)</div>
+                      <div className="text-sm text-zinc-400 mt-1">
+                        🔥 Includes 25M $CLAWDIA auto-burn
+                      </div>
+                      <div className="text-sm text-zinc-500">
+                        🛡️ Holders protected if token sunsets
+                      </div>
+                    </div>
+                  </label>
+                </div>
+                <div className="h-12 bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg flex items-center justify-center text-white font-medium">
+                  Launch Token - 0.15 ETH
+                </div>
+              </div>
+            </div>
+            <p className="text-center text-zinc-500 mt-6 text-sm">
+              Users see a simple checkbox. DEX swap and burn happens automatically.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Fee Flow Diagram */}
       <section className="py-20 px-4 border-t border-white/5">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
@@ -121,6 +178,18 @@ export default function Home() {
               <FlowArrow />
               <FlowNode icon="👥" label="Holders" sublabel="Claims" />
             </div>
+            
+            {/* Buyback Flow */}
+            <div className="mt-8 pt-8 border-t border-white/10">
+              <div className="text-center text-sm text-zinc-500 mb-4">Admin fees → Buyback & Burn</div>
+              <div className="flex items-center justify-center gap-4">
+                <FlowNode icon="💰" label="Admin Fees" sublabel="ETH" small />
+                <FlowArrow />
+                <FlowNode icon="🔄" label="Uniswap" sublabel="Swap" small />
+                <FlowArrow />
+                <FlowNode icon="🔥" label="Burn" sublabel="$CLAWDIA" small highlight />
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -130,32 +199,44 @@ export default function Home() {
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold mb-4">Coverage tiers</h2>
-            <p className="text-zinc-400 text-lg">Choose the protection level that fits your project</p>
+            <p className="text-zinc-400 text-lg">All tiers burn 25M $CLAWDIA on registration</p>
           </div>
           
-          <div className="grid md:grid-cols-3 gap-6">
-            <TierCard
-              name="Basic"
-              feeShare="5%"
-              multiplier="1x"
-              description="Entry-level coverage for smaller projects"
-              features={['Fee stream coverage', 'Pro-rata claims', 'Basic support']}
-            />
+          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
             <TierCard
               name="Standard"
               feeShare="10%"
-              multiplier="1.5x"
+              multiplier="1.2x"
               description="Recommended for most agent tokens"
-              features={['1.5x coverage multiplier', 'Priority claims', 'Dashboard access']}
+              features={['25M CLAWDIA burn', '1.2x coverage multiplier', 'Pro-rata claims', 'Dashboard access']}
               featured
             />
             <TierCard
               name="Premium"
               feeShare="15%"
-              multiplier="2x"
+              multiplier="1.5x"
               description="Maximum protection for high-value tokens"
-              features={['2x coverage multiplier', 'Cross-subsidy pool', 'Premium support']}
+              features={['25M CLAWDIA burn', '1.5x coverage multiplier', 'Priority claims', 'Premium support']}
             />
+          </div>
+        </div>
+      </section>
+
+      {/* Calculator */}
+      <section className="py-20 px-4 border-t border-white/5">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold mb-4">Coverage calculator</h2>
+            <p className="text-zinc-400 text-lg">See how much protection your token could build</p>
+          </div>
+
+          <div className="glass rounded-2xl p-8 md:p-10">
+            <div className="text-center p-8 text-zinc-400">
+              <p>Interactive calculator coming soon!</p>
+              <p className="text-sm mt-2">
+                For now: $100K monthly volume × 1% fee × 10% Sunset share = $100/month coverage
+              </p>
+            </div>
           </div>
         </div>
       </section>
@@ -165,12 +246,12 @@ export default function Home() {
         <div className="absolute inset-0 gradient-sunset opacity-50" />
         
         <div className="max-w-3xl mx-auto text-center relative z-10">
-          <div className="text-6xl mb-6">🌅</div>
+          <div className="text-6xl mb-6">🌅🔥</div>
           <h2 className="text-4xl md:text-5xl font-bold mb-6">
-            Built for the <span className="gradient-text">agent economy</span>
+            Utility-driven protection for the <span className="gradient-text">agent economy</span>
           </h2>
           <p className="text-xl text-zinc-400 mb-10 max-w-xl mx-auto">
-            Most tokens will eventually sunset. The question is whether holders get zero or something.
+            Every registration burns 25M $CLAWDIA. 1,000 projects = 25% of supply.
           </p>
           <Link href="/register" className="btn-primary text-lg inline-flex items-center gap-2 animate-pulse-glow">
             Protect your token
@@ -206,6 +287,16 @@ export default function Home() {
   )
 }
 
+function BurnStatCard({ value, label, icon }: { value: string; label: string; icon: string }) {
+  return (
+    <div className="text-center p-4 rounded-xl bg-orange-500/5 border border-orange-500/20">
+      <div className="text-2xl mb-2">{icon}</div>
+      <div className="text-2xl font-bold text-orange-400">{value}</div>
+      <div className="text-sm text-zinc-500">{label}</div>
+    </div>
+  )
+}
+
 function StatCard({ value, label, icon }: { value: string; label: string; icon: string }) {
   return (
     <div className="card text-center group cursor-default">
@@ -231,16 +322,22 @@ function StepCard({ number, title, description, icon }: { number: number; title:
   )
 }
 
-function FlowNode({ icon, label, sublabel, highlight = false }: { icon: string; label: string; sublabel: string; highlight?: boolean }) {
+function FlowNode({ icon, label, sublabel, highlight = false, small = false }: { 
+  icon: string; 
+  label: string; 
+  sublabel: string; 
+  highlight?: boolean;
+  small?: boolean;
+}) {
   return (
     <div className={`text-center ${highlight ? 'scale-110' : ''}`}>
-      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl mb-2 mx-auto ${
+      <div className={`${small ? 'w-12 h-12 text-xl' : 'w-16 h-16 text-2xl'} rounded-2xl flex items-center justify-center mb-2 mx-auto ${
         highlight ? 'bg-orange-500/20 border-2 border-orange-500/50 glow-orange' : 'bg-white/5 border border-white/10'
       }`}>
         {icon}
       </div>
-      <div className="font-semibold">{label}</div>
-      <div className="text-sm text-zinc-500">{sublabel}</div>
+      <div className={`font-semibold ${small ? 'text-sm' : ''}`}>{label}</div>
+      <div className={`text-zinc-500 ${small ? 'text-xs' : 'text-sm'}`}>{sublabel}</div>
     </div>
   )
 }
@@ -296,7 +393,9 @@ function TierCard({
       <ul className="space-y-3">
         {features.map((feature, i) => (
           <li key={i} className="flex items-center gap-3 text-sm text-zinc-300">
-            <span className="text-green-400 flex-shrink-0">✓</span>
+            <span className={feature.includes('CLAWDIA') ? 'text-orange-400' : 'text-green-400'}>
+              {feature.includes('CLAWDIA') ? '🔥' : '✓'}
+            </span>
             {feature}
           </li>
         ))}
