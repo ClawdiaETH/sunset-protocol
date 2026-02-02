@@ -244,7 +244,7 @@ export default function Home() {
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold mb-4">Coverage tiers</h2>
-            <p className="text-zinc-400 text-lg">All tiers burn 25M $CLAWDIA on registration (~$0.10 ETH)</p>
+            <p className="text-zinc-400 text-lg">One-time 25M $CLAWDIA charge for registration (~$0.10 ETH)</p>
           </div>
           
           <div className="grid md:grid-cols-2 gap-8">
@@ -254,7 +254,6 @@ export default function Home() {
               multiplier="1.2x"
               description="Recommended for most agent tokens"
               features={[
-                '25M CLAWDIA burn (~0.025% of supply)',
                 'Fee stream coverage',
                 'Pro-rata claims on sunset',
                 '1.2x coverage multiplier',
@@ -269,7 +268,6 @@ export default function Home() {
               multiplier="1.5x"
               description="Maximum protection for high-value tokens"
               features={[
-                '25M CLAWDIA burn (~0.025% of supply)', 
                 'Everything in Standard',
                 '1.5x coverage multiplier',
                 'Higher effective coverage',
