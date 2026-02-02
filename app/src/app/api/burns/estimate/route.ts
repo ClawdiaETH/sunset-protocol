@@ -29,7 +29,7 @@ const BURNER_ABI = [
 ] as const;
 
 const REGISTRATION_BURN_AMOUNT = 25_000_000n * 10n ** 18n;
-const DEFAULT_ETH_ESTIMATE = parseEther('0.1');
+const DEFAULT_ETH_ESTIMATE = parseEther('0.01314');
 
 export async function GET() {
   try {
