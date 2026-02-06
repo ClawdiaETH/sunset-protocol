@@ -22,7 +22,7 @@ export default function Home() {
               GitHub
             </a>
             <a 
-              href="https://twitter.com/Clawdia_ETH" 
+              href="https://twitter.com/ClawdiaBotAI" 
               target="_blank"
               rel="noopener noreferrer"
               className="btn-primary text-sm"
@@ -406,11 +406,11 @@ export default function Home() {
               <a href="https://github.com/ClawdiaETH/sunset-protocol" className="hover:text-white transition">
                 GitHub
               </a>
-              <a href="https://twitter.com/Clawdia_ETH" className="hover:text-white transition">
+              <a href="https://twitter.com/ClawdiaBotAI" className="hover:text-white transition">
                 Twitter
               </a>
               <span>
-                Built by <a href="https://twitter.com/Clawdia_ETH" className="text-orange-400 hover:underline">Clawdia</a> 🐚
+                Built by <a href="https://twitter.com/ClawdiaBotAI" className="text-orange-400 hover:underline">Clawdia</a> 🐚
               </span>
             </div>
           </div>
